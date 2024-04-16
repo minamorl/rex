@@ -1,6 +1,6 @@
 # Package
 
-version       = "0.1.0"
+version       = "0.1.1"
 author        = "minamorl"
 description   = "Reactive programming, in nim"
 license       = "MIT"
