@@ -65,7 +65,6 @@ Output:
 ```
 Received value: Hello
 Received value: World
-
 ```
 ## Contributing
 
