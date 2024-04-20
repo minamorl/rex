@@ -12,13 +12,12 @@ suite "Observable":
 
     let observable = create[int](
       proc(obs: Observable[int]) =
+        obs.subscribe(observer)
         obs.next(1)
         obs.next(2)
         obs.next(3)
     )
 
-    observable.subscribe(observer)
-    observable.enable()
 
     assert receivedValues == @[1, 2, 3]
 
@@ -34,13 +33,12 @@ suite "Observable":
 
     let observable = create[int](
       proc(obs: Observable[int]) =
+        obs.subscribe(observer1)
+        obs.subscribe(observer2)
         obs.next(10)
         obs.next(20)
     )
 
-    observable.subscribe(observer1)
-    observable.subscribe(observer2)
-    observable.enable()
 
     assert observer1Values == @[10, 20]
     assert observer2Values == @[10, 20]
