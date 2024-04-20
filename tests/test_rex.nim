@@ -42,3 +42,19 @@ suite "Observable":
 
     assert observer1Values == @[10, 20]
     assert observer2Values == @[10, 20]
+
+  test "late subscriber gets last value":
+    var receivedValue: int = 0
+
+    proc lateObserver(value: int) =
+      receivedValue = value
+
+    let observable = create[int](
+      proc(obs: Observable[int]) =
+        obs.next(1)
+        obs.next(2)
+        obs.next(3)
+    )
+
+    observable.subscribe(lateObserver)
+    assert receivedValue == 3
