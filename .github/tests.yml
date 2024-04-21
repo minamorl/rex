@@ -1,0 +1,26 @@
+on:
+  pull_request:
+  push:
+
+jobs:
+  tests:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        nimversion:
+          - binary:stable
+        os:
+          - ubuntu-latest
+          - macOS-latest
+          - windows-latest
+    steps:
+    - uses: actions/checkout@v1
+    - uses: iffy/install-nim@v5
+      with:
+        version: ${{ matrix.nimversion }}
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    - name: Test
+      run: |
+        nimble install -y
+        nimble test
