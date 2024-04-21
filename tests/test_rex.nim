@@ -152,7 +152,7 @@ suite "Operators - throttle":
     
     let throttledObservable = observable
       .throttle(proc(value: int): Duration = initDuration(milliseconds = 100))
-      .tap(proc(value: int) = echo value)
+
     # When
     var receivedValues: seq[int] = @[]
     throttledObservable.subscribe(proc(value: int) = receivedValues.add(value))
@@ -164,7 +164,7 @@ suite "Operators - throttle":
     # Then
     assert receivedValues == @[1, 3]
 
-suite "Operators - combine":
+suite "Operators - combine 2 parameters":
   test "combine of same type":
     # Given
     let observable1 = create[int](
@@ -212,3 +212,96 @@ suite "Operators - combine":
     
     # Then
     assert receivedValues == @[(1, "2"), (3, "2"), (3, "4")]
+
+suite "Operators - combine 3 parameters":
+  test "combine of same type":
+    # Given
+    let observable1 = create[int](
+      proc(obs: Observable[int]) =
+        obs.next(1)
+    )
+    let observable2 = create[int](
+      proc(obs: Observable[int]) =
+        obs.next(2)
+    )
+    let observable3 = create[int](
+      proc(obs: Observable[int]) =
+        obs.next(3)
+    )
+    
+    let combinedObservable = combine(observable1, observable2, observable3)
+    
+    # When
+    var receivedValues: seq[(int, int, int)] = @[]
+    combinedObservable.subscribe(proc(value: (int, int, int)) = receivedValues.add(value))
+    
+    observable1.next(3)
+    observable2.next(4)
+    observable3.next(5)
+    
+    # Then
+    assert receivedValues == @[(1, 2, 3), (3, 2, 3), (3, 4, 3), (3, 4, 5)]
+  
+  test "combine of different types":
+    # Given
+    let observable1 = create[int](
+      proc(obs: Observable[int]) =
+        obs.next(1)
+    )
+    
+    let observable2 = create[string](
+      proc(obs: Observable[string]) =
+        obs.next("2")
+    )
+    
+    let observable3 = create[bool](
+      proc(obs: Observable[bool]) =
+        obs.next(true)
+    )
+    
+    let combinedObservable = combine(observable1, observable2, observable3)
+    
+    # When
+    var receivedValues: seq[(int, string, bool)] = @[]
+    combinedObservable.subscribe(proc(value: (int, string, bool)) = receivedValues.add(value))
+    
+    observable1.next(3)
+    observable2.next("4")
+    observable3.next(false)
+    
+    # Then
+    assert receivedValues == @[(1, "2", true), (3, "2", true), (3, "4", true), (3, "4", false)]
+
+suite "Operators - combine 4 parameters":
+  test "combine of same type":
+    # Given
+    let observable1 = create[int](
+      proc(obs: Observable[int]) =
+        obs.next(1)
+    )
+    let observable2 = create[int](
+      proc(obs: Observable[int]) =
+        obs.next(2)
+    )
+    let observable3 = create[int](
+      proc(obs: Observable[int]) =
+        obs.next(3)
+    )
+    let observable4 = create[int](
+      proc(obs: Observable[int]) =
+        obs.next(4)
+    )
+    
+    let combinedObservable = combine(observable1, observable2, observable3, observable4)
+    
+    # When
+    var receivedValues: seq[(int, int, int, int)] = @[]
+    combinedObservable.subscribe(proc(value: (int, int, int, int)) = receivedValues.add(value))
+    
+    observable1.next(3)
+    observable2.next(4)
+    observable3.next(5)
+    observable4.next(6)
+    
+    # Then
+    assert receivedValues == @[(1, 2, 3, 4), (3, 2, 3, 4), (3, 4, 3, 4), (3, 4, 5, 4), (3, 4, 5, 6)]
