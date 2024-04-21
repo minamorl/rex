@@ -33,14 +33,6 @@ myObservable.subscribe(proc(value: int) =
 )
 ```
 
-### Enabling an Observable
-
-To start emitting values from an observable, use the enable proc:
-
-```nim
-myObservable.enable()
-```
-
 ## Example
 
 Here's a complete example that demonstrates how to use the rex library:
@@ -49,16 +41,14 @@ Here's a complete example that demonstrates how to use the rex library:
 import rex
 
 let myObservable = create[string](proc(observable: Observable[string]) =
+    observable.subscribe(proc(value: string) =
+        echo "Received value: ", value
+    )
     observable.next("Hello")
     observable.next("World")
 )
 
 
-myObservable.subscribe(proc(value: string) =
-    echo "Received value: ", value
-)
-
-myObservable.enable()
 ```
 
 Output:
