@@ -2,7 +2,11 @@ import std/[times, monotimes, os, options, sugar]
 
 # TODO:
 # - Instead of a proc you don't export, try using importutils for really evil private field access
-# - Provide `of` and use "newObservable" only internally. Then you can test complete callbacks.
+# - Implement error handling to call error callback when an error appears anywhere
+# - Provide a second version of newObservable that takes in `proc[T](observer: Observer[T])`.
+#     This likely will become a refactor because the assumption of "an observable contains a value" no longer holds up.
+#     Instead it becomes "an observable holds a callback on how to execute observers"
+# - Unsubscription mechanisms, because observables might outlive observers and thus they should be able to unsubscribe
 
 ### TYPES / BASICS
 type SubscriptionCallback*[T] = proc(value: T)
@@ -18,7 +22,11 @@ proc newObserver*[T](
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil
 ): Observer[T] =
-  Observer[T](subscription: subscription, error: error, complete: complete)
+  Observer[T](
+    subscription: subscription, 
+    error: error, 
+    complete: complete
+  )
 
 ### OBSERVABLE ###
 type Observable*[T] = ref object of RootObj
@@ -37,9 +45,9 @@ proc subscribe*[T](reactable: Observable[T]; observer: Observer[T]) =
   let hasCompleteCallback = not observer.complete.isNil()
   if reactable.completed and hasCompleteCallback:
     observer.complete()
-    return
   
-  reactable.observers.add(observer)
+  if not reactable.completed:  
+    reactable.observers.add(observer)
   
   let initialValue = reactable.getValue()
   let hasInitialValue = initialValue.isSome()
@@ -57,6 +65,9 @@ proc subscribe*[T](
 
 
 proc complete*[T](reactable: Observable[T]) =
+  if reactable.completed:
+    return
+  
   reactable.completed = true
   for observer in reactable.observers:
     let hasCompleteCallback = not observer.complete.isNil()
