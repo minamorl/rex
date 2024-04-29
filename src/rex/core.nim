@@ -25,10 +25,6 @@ type Observable*[T] = ref object of RootObj
   observers: seq[Observer[T]]
   getValue: proc(): Option[T] {.closure.}
   completed: bool
-
-proc value*[T](obs: Observable[T]): Option[T] = obs.getValue()
-proc `value=`*[T](obs: Observable[T], valueGetter: proc(): Option[T] {.closure.}) =
-  obs.getValue = valueGetter
   
 proc forward*[T](obs: Observable[T], value: T) =
   # For internal usage only. Forwards a value when e.g. a subject is underneath the type

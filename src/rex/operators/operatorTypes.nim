@@ -17,7 +17,8 @@ proc newFilterObservable*[T](
   obsFilter: proc(value: T): bool
 ): Observable[T] =
   proc getValueClosure(): Option[T] =
-    let parentValue: Option[T] = parent.value
+    privateAccess(Observable[T])
+    let parentValue: Option[T] = parent.getValue()
     return parentValue.filter(value => obsFilter(value))
   
   return parent.toNewObservable(getValueClosure)
@@ -27,7 +28,8 @@ proc newMapObservable*[SOURCE, RESULT](
   mapper: proc(value: SOURCE): RESULT
 ): Observable[RESULT] =
   proc getValueClosure(): Option[RESULT] =
-    let parentValue: Option[SOURCE] = parent.value
+    privateAccess(Observable[SOURCE])
+    let parentValue: Option[SOURCE] = parent.getValue()
     return parentValue.map(value => mapper(value))
   
   return parent.toNewObservable(getValueClosure)
