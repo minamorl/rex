@@ -1,5 +1,5 @@
 import rex
-import std/[times, os, unittest, sugar]
+import std/[unittest, sugar]
 
 suite "Operators - map":
   test """
