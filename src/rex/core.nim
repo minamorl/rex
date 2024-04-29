@@ -1,7 +1,8 @@
 import std/[times, monotimes, os, options, sugar]
 
-# IDEAS
-# - Turn OperatorObservable into an object variant that has different proc fields for different kinds of operators
+# TODO:
+# - Instead of a proc you don't export, try using importutils for really evil private field access
+# - Provide `of` and use "newObservable" only internally. Then you can test complete callbacks.
 
 ### TYPES / BASICS
 type SubscriptionCallback*[T] = proc(value: T)
@@ -18,7 +19,7 @@ proc newObserver*[T](
   complete: CompleteCallback = nil
 ): Observer[T] =
   Observer[T](subscription: subscription, error: error, complete: complete)
-  
+
 ### OBSERVABLE ###
 type Observable*[T] = ref object of RootObj
   observers: seq[Observer[T]]
@@ -38,7 +39,7 @@ proc newObservable*[T](value: T): Observable[T] =
   Observable[T](
     observers: @[],
     getValue: proc(): Option[T] = some(value),
-    completed: false
+    completed: true
   )
 
 proc subscribe*[T](reactable: Observable[T]; observer: Observer[T]) =
@@ -53,6 +54,16 @@ proc subscribe*[T](reactable: Observable[T]; observer: Observer[T]) =
   let hasInitialValue = initialValue.isSome()
   if hasInitialValue:
     observer.subscription(initialValue.get())
+
+proc subscribe*[T](
+  reactable: Observable[T],
+  subscription: SubscriptionCallback[T],
+  error: ErrorCallback = nil,
+  complete: CompleteCallback = nil
+) =
+  let observer = newObserver[T](subscription, error, complete)
+  reactable.subscribe(observer)
+
 
 proc complete*[T](reactable: Observable[T]) =
   reactable.completed = true

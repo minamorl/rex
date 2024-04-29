@@ -1,6 +1,16 @@
-import std/[sugar, options]
+import std/[sugar, options, importutils]
 import ../core
 export core
+
+proc toNewObservable[SOURCE, RESULT](
+  source: Observable[SOURCE],
+  valueGetter: proc(): Option[RESULT] {.closure.}
+): Observable[RESULT] =
+  privateAccess(Observable[SOURCE])
+  return Observable[RESULT](
+    getValue: valueGetter,
+    completed: source.completed
+  )
 
 proc newFilterObservable*[T](
   parent: Observable[T],
@@ -10,8 +20,7 @@ proc newFilterObservable*[T](
     let parentValue: Option[T] = parent.value
     return parentValue.filter(value => obsFilter(value))
   
-  result = newObservable[T](default(T))
-  result.value = getValueClosure
+  return parent.toNewObservable(getValueClosure)
 
 proc newMapObservable*[SOURCE, RESULT](
   parent: Observable[SOURCE],
@@ -21,5 +30,4 @@ proc newMapObservable*[SOURCE, RESULT](
     let parentValue: Option[SOURCE] = parent.value
     return parentValue.map(value => mapper(value))
   
-  result = newObservable[RESULT](default(RESULT))
-  result.value = getValueClosure
+  return parent.toNewObservable(getValueClosure)
