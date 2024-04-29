@@ -1,4 +1,4 @@
-import std/[times, monotimes, os, options, sugar]
+import std/[options]
 
 # TODO:
 # - Instead of a proc you don't export, try using importutils for really evil private field access

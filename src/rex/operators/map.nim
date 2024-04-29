@@ -1,4 +1,3 @@
-import std/[options, sugar]
 import ./operatorTypes
 
 proc map*[SOURCE, RESULT](
