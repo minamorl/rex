@@ -6,7 +6,7 @@ import std/[unittest, sugar, importutils]
 
 suite "Observable":
   test """
-    GIVEN a cold observable
+    GIVEN a cold observable created from value
     WHEN subscribing to it
     THEN it should emit the value it contains
   """:
@@ -21,6 +21,29 @@ suite "Observable":
     
     # THEN
     check receivedValues == @[obsValue]
+  
+  test """
+    GIVEN a cold observable created from observable callback
+    WHEN subscribing to it
+    THEN it should emit the values that the callback emits
+  """:
+    # GIVEN
+    var receivedValues: seq[int] = @[]
+    let obsValue1 = 5
+    let obsValue2 = 3
+    let obsValue3 = 4
+    let observable = newObservable[int](
+      proc(observer: Observer[int]) =
+        observer.next(obsValue1)
+        observer.next(obsValue2)
+        observer.next(obsValue3) 
+    )
+    
+    # WHEN
+    observable.subscribe((value: int) => receivedValues.add(value))
+    
+    # THEN
+    check receivedValues == @[obsValue1, obsValue2, obsValue3]
   
   test """
     GIVEN a cold observable
@@ -80,6 +103,7 @@ suite "Observable":
     # THEN
     privateAccess(Observable[int])
     check observable.observers.len == 0
+  
   # TODO tests for observables:
   # test: """
   #   GIVEN a cold observable with a subscriber with an error callback

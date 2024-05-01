@@ -21,6 +21,31 @@ suite "Operators - filter":
     check receivedValues == expected
 
   test """
+    GIVEN a cold int observable created from observable callback
+    WHEN using the map operator to double the value
+    THEN it should generate a new cold observable that emits the mapped value on subscribe
+  """:
+    # GIVEN
+    var receivedValues: seq[int] = @[]
+    let obsValue1 = 5
+    let obsValue2 = 3
+    let obsValue3 = 4
+    let observable = newObservable[int](
+      proc(observer: Observer[int]) =
+        observer.next(obsValue1)
+        observer.next(obsValue2)
+        observer.next(obsValue3) 
+    )
+    let filteredObservable = observable.filter((value: int) => value mod 2 != 0)
+    
+    # WHEN
+    filteredObservable.subscribe((value: int) => receivedValues.add(value))
+    
+    # THEN
+    check receivedValues == @[obsValue1, obsValue2]
+
+
+  test """
     GIVEN a cold int observable of the value 3
     WHEN using the filter operator to ignore values that are divisible by 2
     THEN it should emit the value 3

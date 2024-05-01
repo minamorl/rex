@@ -1,4 +1,4 @@
-import std/[options, sequtils]
+import std/[sequtils]
 
 # TODO:
 # - Instead of a proc you don't export, try using importutils for really evil private field access
@@ -23,7 +23,8 @@ type
 
   Observable*[T] = ref object of RootObj
     observers: seq[Observer[T]]
-    getValue: proc(): Option[T] {.closure.}
+    initialHandler: proc(observer: Observer[T])
+    hasInitialValues: bool # Indicates whether the observable has values that must be emitted immediately when somebody subscribes to it. If this is true, initialHandler *must* not be nil. This is true for cold observables, ReplaySubjects, BehaviorSubjects and similar
     completed: bool
 
 proc newObserver*[T](
@@ -36,15 +37,22 @@ proc newObserver*[T](
     error: error, 
     complete: complete,
   )
-
-proc newObservable*[T](value: T): Observable[T] = 
+  
+proc newObservable*[T](valueProc: proc(observer: Observer[T])): Observable[T] =
   Observable[T](
     observers: @[],
-    getValue: proc(): Option[T] = some(value),
+    initialHandler: valueProc,
+    hasInitialValues: true,
     completed: true
-  )
+  )  
 
-proc removeObserver[T](reactable: Observable[T], observer: Observer[T]) =
+proc newObservable*[T](value: T): Observable[T] =
+  proc handleObserver(observer: Observer[T]) =
+    observer.next(value)
+    
+  return newObservable(handleObserver)
+
+proc removeObserver*[T](reactable: Observable[T], observer: Observer[T]) =
   let filteredObservers = reactable.observers.filterIt(it != observer)
   reactable.observers = filteredObservers
 
@@ -64,10 +72,8 @@ proc subscribe*[T](
   if not reactable.completed:  
     reactable.observers.add(observer)
   
-  let initialValue = reactable.getValue()
-  let hasInitialValue = initialValue.isSome()
-  if hasInitialValue:
-    observer.next(initialValue.get())
+  if reactable.hasInitialValues:
+    reactable.initialHandler(observer)
   
   return observer
 

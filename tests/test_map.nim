@@ -20,6 +20,30 @@ suite "Operators - map":
     check receivedValues == @[obsValue * 2]
 
   test """
+    GIVEN a cold int observable created from observable callback
+    WHEN using the map operator to double the value
+    THEN it should generate a new cold observable that emits the mapped value on subscribe
+  """:
+    # GIVEN
+    var receivedValues: seq[int] = @[]
+    let obsValue1 = 5
+    let obsValue2 = 3
+    let obsValue3 = 4
+    let observable = newObservable[int](
+      proc(observer: Observer[int]) =
+        observer.next(obsValue1)
+        observer.next(obsValue2)
+        observer.next(obsValue3) 
+    )
+    let mappedObservable = observable.map((value: int) => value * 2)
+    
+    # WHEN
+    mappedObservable.subscribe((value: int) => receivedValues.add(value))
+    
+    # THEN
+    check receivedValues == @[obsValue1*2, obsValue2*2, obsValue3*2]
+
+  test """
     GIVEN a cold int observable
     WHEN using the map operator to transform the value into a string
     THEN it should generate a new cold observable that emits the mapped value on subscribe

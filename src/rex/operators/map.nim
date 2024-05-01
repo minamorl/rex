@@ -1,16 +1,21 @@
 import ./operatorTypes
-import std/[sugar, options, importutils]
+import std/[importutils]
 
 proc newMapObservable*[SOURCE, RESULT](
   parent: Observable[SOURCE],
   mapper: proc(value: SOURCE): RESULT
 ): Observable[RESULT] =
-  proc getValueClosure(): Option[RESULT] =
+  proc initialHandler(childObserver: Observer[RESULT]) =
+    proc onNext(value: SOURCE) =
+      let newValue = mapper(value)
+      childObserver.next(newValue)
+      
+    let thisObserver = newForwardingObserver(childObserver, onNext)
     privateAccess(Observable[SOURCE])
-    let parentValue: Option[SOURCE] = parent.getValue()
-    return parentValue.map(value => mapper(value))
-  
-  return parent.toNewObservable(getValueClosure)
+    parent.initialHandler(thisObserver)
+    parent.removeObserver(thisObserver)
+
+  return toNewObservable(parent, initialHandler)
 
 proc map*[SOURCE, RESULT](
   source: Observable[SOURCE], 
