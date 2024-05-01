@@ -105,10 +105,7 @@ suite "Operators - map":
     var receivedErrors: seq[ref CatchableError] = @[]
     let observable = newObservable[int](5)
     let mappedObservable = observable
-      .map(proc(value: int): int = 
-        raise newException(ValueError, "Some error")
-        return value*2
-      )
+      .map(proc(value: int): int = raise newException(ValueError, "Some error"))
     
     # WHEN
     mappedObservable.subscribe(

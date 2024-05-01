@@ -1,7 +1,9 @@
 import std/[sequtils]
 
 # TODO:
-# - Implement error handling to call error callback when an error appears anywhere
+# - Figure out how to unsubscribe the tap observer when the parent unsubscribes. Might be that tap does need to create a new observable. Then test tap accordingly
+# - Implement combineLatest
+# - Implement throttle
 
 type ReactiveError* = ref CatchableError
 type SubscriptionError* = ReactiveError
