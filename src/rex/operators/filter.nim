@@ -1,4 +1,16 @@
 import ./operatorTypes
+import std/[sugar, options, importutils]
+
+proc newFilterObservable[T](
+  parent: Observable[T],
+  obsFilter: proc(value: T): bool
+): Observable[T] =
+  proc getValueClosure(): Option[T] =
+    privateAccess(Observable[T])
+    let parentValue: Option[T] = parent.getValue()
+    return parentValue.filter(value => obsFilter(value))
+  
+  return parent.toNewObservable(getValueClosure)
 
 proc filter*[T](
   source: Observable[T], 
