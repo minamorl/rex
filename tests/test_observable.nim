@@ -2,7 +2,7 @@ import rex
 # test_rex.nim
 
 import rex
-import std/[unittest, sugar]
+import std/[unittest, sugar, importutils]
 
 suite "Observable":
   test """
@@ -64,6 +64,22 @@ suite "Observable":
     check receivedValues1 == @[obsValue]
     check receivedValues2 == @[obsValue]
   
+  test """
+    GIVEN a cold observable with one subscriber
+    WHEN unsubscribing from it
+    THEN it should not have any observers/subscribers
+  """:
+    # GIVEN
+    var receivedValues: seq[int] = @[]
+    let observable = newObservable[int](5)
+    let subscription = observable.subscribe((value: int) => receivedValues.add(value))
+    
+    # WHEN
+    subscription.unsubscribe()
+    
+    # THEN
+    privateAccess(Observable[int])
+    check observable.observers.len == 0
   # TODO tests for observables:
   # test: """
   #   GIVEN a cold observable with a subscriber with an error callback

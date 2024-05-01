@@ -1,4 +1,4 @@
-import std/[options]
+import std/[options, sequtils]
 
 # TODO:
 # - Instead of a proc you don't export, try using importutils for really evil private field access
@@ -8,31 +8,34 @@ import std/[options]
 #     Instead it becomes "an observable holds a callback on how to execute observers"
 # - Unsubscription mechanisms, because observables might outlive observers and thus they should be able to unsubscribe
 
+type SubscriptionError = object of CatchableError
+
 ### TYPES / BASICS
 type SubscriptionCallback*[T] = proc(value: T)
 type ErrorCallback* = proc(error: CatchableError)
 type CompleteCallback* = proc()
-type Observer*[T] = ref object
-  subscription*: SubscriptionCallback[T]
-  error*: ErrorCallback
-  complete*: CompleteCallback
+type 
+  Observer*[T] = ref object
+    subscription*: SubscriptionCallback[T]
+    error*: ErrorCallback
+    complete*: CompleteCallback
+    observed: Observable[T] # Observable this observer is subscribed to
+
+  Observable*[T] = ref object of RootObj
+    observers: seq[Observer[T]]
+    getValue: proc(): Option[T] {.closure.}
+    completed: bool
 
 proc newObserver*[T](
   subscription: SubscriptionCallback[T], 
   error: ErrorCallback = nil,
-  complete: CompleteCallback = nil
+  complete: CompleteCallback = nil,
 ): Observer[T] =
   Observer[T](
     subscription: subscription, 
     error: error, 
-    complete: complete
+    complete: complete,
   )
-
-### OBSERVABLE ###
-type Observable*[T] = ref object of RootObj
-  observers: seq[Observer[T]]
-  getValue: proc(): Option[T] {.closure.}
-  completed: bool
 
 proc newObservable*[T](value: T): Observable[T] = 
   Observable[T](
@@ -41,7 +44,19 @@ proc newObservable*[T](value: T): Observable[T] =
     completed: true
   )
 
-proc subscribe*[T](reactable: Observable[T]; observer: Observer[T]) =
+proc removeObserver[T](reactable: Observable[T], observer: Observer[T]) =
+  let filteredObservers = reactable.observers.filterIt(it != observer)
+  reactable.observers = filteredObservers
+
+proc unsubscribe*[T](observer: Observer[T]) =
+  removeObserver(observer.observed, observer)
+
+proc subscribe*[T](
+  reactable: Observable[T]; 
+  observer: Observer[T]
+): Observer[T] {.discardable.} =
+  observer.observed = reactable
+  
   let hasCompleteCallback = not observer.complete.isNil()
   if reactable.completed and hasCompleteCallback:
     observer.complete()
@@ -53,16 +68,17 @@ proc subscribe*[T](reactable: Observable[T]; observer: Observer[T]) =
   let hasInitialValue = initialValue.isSome()
   if hasInitialValue:
     observer.subscription(initialValue.get())
+  
+  return observer
 
 proc subscribe*[T](
   reactable: Observable[T],
   subscription: SubscriptionCallback[T],
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil
-) =
+): Observer[T] {.discardable.} =
   let observer = newObserver[T](subscription, error, complete)
-  reactable.subscribe(observer)
-
+  return reactable.subscribe(observer)
 
 proc complete*[T](reactable: Observable[T]) =
   if reactable.completed:
@@ -88,4 +104,4 @@ proc connect*[T, U](source: Observable[T], target: Observable[U], subscription: 
     complete = onSourceCompletion,
     error = onSourceError
   ) 
-  source.subscribe(connection)
+  discard source.subscribe(connection)

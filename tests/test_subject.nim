@@ -1,5 +1,5 @@
 import rex
-import std/[unittest, sugar]
+import std/[unittest, sugar, importutils]
 
 suite "Subject":
   test """
@@ -94,6 +94,23 @@ suite "Subject":
     check receivedValues == expectedReceivedValues
     check completeValues == @[1]
 
+  test """
+    GIVEN an int subject with one subscriber
+    WHEN unsubscribing from it
+    THEN it should not have any observers/subscribers
+  """:
+    # GIVEN
+    let observable = newSubject[int]()
+    let subscription = observable.subscribe((value: int) => echo value)
+    privateAccess(Observable[int])
+    check observable.observers.len == 1
+    
+    # WHEN
+    subscription.unsubscribe()
+    
+    # THEN
+    check observable.observers.len == 0
+  
   # TODO tests for Subjects:
   # test: """
   #   GIVEN a cold observable with a subscriber with an error callback
