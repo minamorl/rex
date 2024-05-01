@@ -1,2 +1,2 @@
-import ./reactors/subjects
-export subjects
+import ./subjects/subject
+export subject
