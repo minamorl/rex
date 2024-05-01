@@ -96,3 +96,51 @@ suite "Operators - map":
     # THEN
     check receivedValues == @["10"]
   
+  test """
+    GIVEN a cold int observable
+    WHEN using the map operator that throws an exception
+    THEN it should call the error callback
+  """:
+    # GIVEN
+    var receivedErrors: seq[ref CatchableError] = @[]
+    let observable = newObservable[int](5)
+    let mappedObservable = observable
+      .map(proc(value: int): int = 
+        raise newException(ValueError, "Some error")
+        return value*2
+      )
+    
+    # WHEN
+    mappedObservable.subscribe(
+      next = proc(value: int) = discard,
+      error = (error: ref CatchableError) => receivedErrors.add(error)
+    )
+    
+    # THEN
+    check receivedErrors.len == 1
+    check receivedErrors[0].msg == "Some error"
+
+  test """
+    GIVEN a cold int observable that throws an exception
+    WHEN using the map operator
+    THEN it should call the error callback
+  """:
+    # GIVEN
+    var receivedErrors: seq[ref CatchableError] = @[]
+    let observable = newObservable[int](
+      proc(observer: Observer[int]) =
+        observer.next(4)
+        raise newException(ValueError, "Some error")
+    )
+    let mappedObservable = observable
+      .map(proc(value: int): int = value*2)
+    
+    # WHEN
+    mappedObservable.subscribe(
+      next = proc(value: int) = discard,
+      error = (error: ref CatchableError) => receivedErrors.add(error)
+    )
+    
+    # THEN
+    check receivedErrors.len == 1
+    check receivedErrors[0].msg == "Some error"

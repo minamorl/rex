@@ -6,15 +6,18 @@ proc newFilterObservable[T](
   obsFilter: proc(value: T): bool
 ): Observable[T] =
   proc initialHandler(childObserver: Observer[T]) =
-    ## Keep in mind, we're going from child to parent here where child calls parent
-    proc onNext(value: T) =
-      if obsFilter(value):
-        childObserver.next(value)
+    ## Handles forwarding events for when somebody initially subscribes to an observable.
+    ## The childObserver is either a temporary observer created for only this purpose or the
+    ## observer provided for subscribing.
+    proc onNextInitially(value: T) =
+      rerouteError(childObserver):
+        if obsFilter(value):
+          childObserver.next(value)
+    let tempObserver = newForwardingObserver(childObserver, onNextInitially)
     
-    let thisObserver = newForwardingObserver(childObserver, onNext)
     privateAccess(Observable[T])
-    parent.initialHandler(thisObserver)
-    parent.removeObserver(thisObserver)
+    parent.initialHandler(tempObserver)
+    parent.removeObserver(tempObserver)
   
   return toNewObservable(parent, initialHandler)
 

@@ -1,20 +1,16 @@
 import std/[sequtils]
 
 # TODO:
-# - Instead of a proc you don't export, try using importutils for really evil private field access
 # - Implement error handling to call error callback when an error appears anywhere
-# - Provide a second version of newObservable that takes in `proc[T](observer: Observer[T])`.
-#     This likely will become a refactor because the assumption of "an observable contains a value" no longer holds up.
-#     Instead it becomes "an observable holds a callback on how to execute observers"
-# - Unsubscription mechanisms, because observables might outlive observers and thus they should be able to unsubscribe
 
-type SubscriptionError = object of CatchableError
+type ReactiveError* = ref CatchableError
+type SubscriptionError* = ReactiveError
 
 ### TYPES / BASICS
-type NextCallback*[T] = proc(value: T)
-type ErrorCallback* = proc(error: CatchableError)
-type CompleteCallback* = proc()
 type 
+  NextCallback*[T] = proc(value: T)
+  ErrorCallback* = proc(error: ReactiveError)
+  CompleteCallback* = proc()
   Observer*[T] = ref object
     next*: NextCallback[T]
     error*: ErrorCallback
@@ -27,6 +23,19 @@ type
     hasInitialValues: bool # Indicates whether the observable has values that must be emitted immediately when somebody subscribes to it. If this is true, initialHandler *must* not be nil. This is true for cold observables, ReplaySubjects, BehaviorSubjects and similar
     completed: bool
 
+proc hasErrorCallback*(observer: Observer): bool =
+  not observer.error.isNil()
+
+proc hasCompleteCallback*(observer: Observer): bool =
+  not observer.complete.isNil()
+
+template rerouteError*(observer: Observer, body: untyped) =
+  try:
+    body
+  except CatchableError as e:
+    if observer.hasErrorCallback():
+      observer.error(e)
+      
 proc newObserver*[T](
   next: NextCallback[T], 
   error: ErrorCallback = nil,
@@ -48,7 +57,8 @@ proc newObservable*[T](valueProc: proc(observer: Observer[T])): Observable[T] =
 
 proc newObservable*[T](value: T): Observable[T] =
   proc handleObserver(observer: Observer[T]) =
-    observer.next(value)
+    rerouteError(observer):
+      observer.next(value)
     
   return newObservable(handleObserver)
 
@@ -65,15 +75,15 @@ proc subscribe*[T](
 ): Observer[T] {.discardable.} =
   observer.observed = reactable
   
-  let hasCompleteCallback = not observer.complete.isNil()
-  if reactable.completed and hasCompleteCallback:
+  if reactable.completed and observer.hasCompleteCallback():
     observer.complete()
   
   if not reactable.completed:  
     reactable.observers.add(observer)
   
   if reactable.hasInitialValues:
-    reactable.initialHandler(observer)
+    rerouteError(observer):
+      reactable.initialHandler(observer)
   
   return observer
 
@@ -92,22 +102,6 @@ proc complete*[T](reactable: Observable[T]) =
   
   reactable.completed = true
   for observer in reactable.observers:
-    let hasCompleteCallback = not observer.complete.isNil()
-    if hasCompleteCallback:
+    if observer.hasCompleteCallback():
       observer.complete()
   reactable.observers = @[]
-
-proc connect*[T, U](source: Observable[T], target: Observable[U], next: proc(value: T)) =    
-  proc onSourceCompletion() = complete(target)
-
-  proc onSourceError(error: CatchableError) =
-    for observer in target.observers:
-      if not observer.error.isNil():
-        observer.error(error)
-  
-  let connection = newObserver[T](
-    next = next, 
-    complete = onSourceCompletion,
-    error = onSourceError
-  ) 
-  discard source.subscribe(connection)
