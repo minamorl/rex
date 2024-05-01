@@ -11,12 +11,12 @@ import std/[options, sequtils]
 type SubscriptionError = object of CatchableError
 
 ### TYPES / BASICS
-type SubscriptionCallback*[T] = proc(value: T)
+type NextCallback*[T] = proc(value: T)
 type ErrorCallback* = proc(error: CatchableError)
 type CompleteCallback* = proc()
 type 
   Observer*[T] = ref object
-    subscription*: SubscriptionCallback[T]
+    next*: NextCallback[T]
     error*: ErrorCallback
     complete*: CompleteCallback
     observed: Observable[T] # Observable this observer is subscribed to
@@ -27,12 +27,12 @@ type
     completed: bool
 
 proc newObserver*[T](
-  subscription: SubscriptionCallback[T], 
+  next: NextCallback[T], 
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil,
 ): Observer[T] =
   Observer[T](
-    subscription: subscription, 
+    next: next, 
     error: error, 
     complete: complete,
   )
@@ -67,17 +67,17 @@ proc subscribe*[T](
   let initialValue = reactable.getValue()
   let hasInitialValue = initialValue.isSome()
   if hasInitialValue:
-    observer.subscription(initialValue.get())
+    observer.next(initialValue.get())
   
   return observer
 
 proc subscribe*[T](
   reactable: Observable[T],
-  subscription: SubscriptionCallback[T],
+  next: NextCallback[T],
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil
 ): Observer[T] {.discardable.} =
-  let observer = newObserver[T](subscription, error, complete)
+  let observer = newObserver[T](next, error, complete)
   return reactable.subscribe(observer)
 
 proc complete*[T](reactable: Observable[T]) =
@@ -91,7 +91,7 @@ proc complete*[T](reactable: Observable[T]) =
       observer.complete()
   reactable.observers = @[]
 
-proc connect*[T, U](source: Observable[T], target: Observable[U], subscription: proc(value: T)) =    
+proc connect*[T, U](source: Observable[T], target: Observable[U], next: proc(value: T)) =    
   proc onSourceCompletion() = complete(target)
 
   proc onSourceError(error: CatchableError) =
@@ -100,7 +100,7 @@ proc connect*[T, U](source: Observable[T], target: Observable[U], subscription: 
         observer.error(error)
   
   let connection = newObserver[T](
-    subscription = subscription, 
+    next = next, 
     complete = onSourceCompletion,
     error = onSourceError
   ) 

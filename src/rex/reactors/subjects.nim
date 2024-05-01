@@ -13,6 +13,6 @@ proc next*[T](subj: Subject[T], values: varargs[T]) =
   privateAccess(Observable[T]) # Enables accessing observer field
   for value in values:
     for observer in subj.observers:
-      observer.subscription(value)
+      observer.next(value)
 
 proc asObservable*[T](source: Subject[T]): Observable[T] = source

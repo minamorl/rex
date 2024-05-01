@@ -9,7 +9,7 @@ proc tap*[T](
 
 proc tap*[T](
   source: Observable[T],
-  tapProc: SubscriptionCallback[T],
+  tapProc: NextCallback[T],
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil
 ): Observable[T] =

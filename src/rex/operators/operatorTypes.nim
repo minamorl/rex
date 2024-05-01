@@ -15,7 +15,7 @@ proc toNewObservable[SOURCE, RESULT](
 proc forward*[T](source: Observable[T], value: T) =
   privateAccess(Observable[T])
   for observer in source.observers:
-    observer.subscription(value)
+    observer.next(value)
 
 proc newFilterObservable*[T](
   parent: Observable[T],
