@@ -22,6 +22,31 @@ suite "Operators - tap":
     check tapValues == @[obsValue]
 
   test """
+    GIVEN a cold int observable created via emission proc
+    WHEN using the tap operator to push values into a seq
+    THEN it should emit the exact same values in tap and subscribe block
+  """:
+    # GIVEN
+    var tapValues: seq[int] = @[]
+    var receivedValues: seq[int] = @[]
+    let obsValue = 5
+    let observable = newObservable[int](
+      proc(observer: Observer[int]) =
+        observer.next(5)
+        observer.next(4)
+        observer.next(3)
+    )
+    
+    # WHEN
+    observable
+      .tap((value: int) => tapValues.add(value))
+      .subscribe((value: int) => receivedValues.add(value))
+    
+    # THEN
+    check receivedValues == @[5,4,3]
+    check tapValues == @[5,4,3]
+
+  test """
     GIVEN a cold int observable created via map operator
     WHEN tapping the observable
     THEN it should emit the values in tap and map as normal
