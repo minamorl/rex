@@ -1,23 +1,11 @@
 import ./operatorTypes
 import std/[importutils, monotimes, times]
 
-proc throttleComplete[T](observable: Observable[T]) =
-  privateAccess(Observable)
-  if observable.completed:
-    return
-  
-  for observer in observable.observers:
-    if observer.hasCompleteCallback():
-      observer.complete()
-  
-  observable.observers = @[]
-  observable.completed = true
-
 proc throttleSubscribe[T](
   observable: Observable[T], 
   observer: Observer[T],
   throttleProc: proc(value: T): Duration {.closure.}
-) =
+): Subscription =
   var lastTriggerTime: MonoTime
   proc onParentNext(value: T) =
       let delay = throttleProc(value)
@@ -28,7 +16,12 @@ proc throttleSubscribe[T](
         observer.next(value)
   
   let parentObserver = newForwardingObserver(observer, onParentNext)
-  observable.subscribe(parentObserver)
+  let subscription = observable.subscribe(parentObserver)
+
+  privateAccess(Subscription)
+  return Subscription(
+    unsubscribeProc: proc() = subscription.unsubscribe()
+  )
 
 proc throttle*[T](
   source: Observable[T], 
@@ -41,9 +34,9 @@ proc throttle*[T](
   )
   
   throttleObservable.completeProc = proc() =
-    throttleComplete(throttleObservable)
+    completeOperatorObservable(throttleObservable)
   
-  throttleObservable.subscribeProc = proc(observer: Observer[T]) =
+  throttleObservable.subscribeProc = proc(observer: Observer[T]): Subscription =
     throttleSubscribe(source, observer, throttleProc)
     
   return throttleObservable

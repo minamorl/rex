@@ -5,14 +5,20 @@ type Subject*[T] = ref object of Observable[T]
   nextProc: proc(value: T)
 
 proc newSubject*[T](): Subject[T] =
-  privateAccess(Observable[T]) # Enables assigning to Observable fields that Subject inherited
+  privateAccess(Observable)
+  privateAccess(Subscription)
+  
   let subj = Subject[T](
     completed: false,
     observers: @[]
   )
   
-  subj.subscribeProc = proc(observer: Observer[T]) =
+  subj.subscribeProc = proc(observer: Observer[T]): Subscription =
     subj.observers.add(observer)
+    
+    return Subscription(
+      unsubscribeProc: proc() = subj.removeObserver(observer)
+    )
   
   subj.nextProc = proc(value: T) =
     for observer in subj.observers:

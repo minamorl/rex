@@ -5,14 +5,19 @@ proc mapSubscribe[SOURCE, RESULT](
   parent: Observable[SOURCE], 
   observer: Observer[RESULT],
   mapper: proc(value: SOURCE): RESULT {.closure.}
-) = 
+): Subscription = 
   proc onParentNext(value: SOURCE) =
     rerouteError(observer):
       let newValue = mapper(value)
       observer.next(newValue)
     
   let parentObserver = newForwardingObserver(observer, onParentNext)
-  parent.subscribe(parentObserver)
+  let subscription = parent.subscribe(parentObserver)
+  
+  privateAccess(Subscription)
+  return Subscription(
+    unsubscribeProc: proc() = subscription.unsubscribe()
+  )
 
 proc map*[SOURCE, RESULT](
   parent: Observable[SOURCE],
@@ -27,7 +32,7 @@ proc map*[SOURCE, RESULT](
   mapObservable.completeProc = proc() =
     completeOperatorObservable(mapObservable)
   
-  mapObservable.subscribeProc = proc(observer: Observer[RESULT]) =
-    mapSubscribe(parent, observer, mapper)
+  mapObservable.subscribeProc = proc(observer: Observer[RESULT]): Subscription =
+    return mapSubscribe(parent, observer, mapper)
     
   return mapObservable

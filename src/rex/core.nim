@@ -20,13 +20,12 @@ type
 
   Observable*[T] = ref object of RootObj
     observers: seq[Observer[T]]
-    subscribeProc: proc(observer: Observer[T])
+    subscribeProc: proc(observer: Observer[T]): Subscription
     completeProc: proc()
     completed: bool
   
-  Subscription*[T] = ref object
-    observable: Observable[T]
-    observer: Observer[T]
+  Subscription* = ref object
+    unsubscribeProc: proc()
 
 proc hasErrorCallback*(observer: Observer): bool =
   not observer.error.isNil()
@@ -41,9 +40,19 @@ template rerouteError*(observer: Observer, body: untyped) =
     if observer.hasErrorCallback():
       observer.error(e)
 
-proc newSubscription[T](observable: Observable[T], observer: Observer[T]): Subscription[T] =
-  Subscription[T](observable: observable, observer: observer)
+proc removeObserver*[T](reactable: Observable[T], observer: Observer[T]) =
+  let filteredObservers = reactable.observers.filterIt(it != observer)
+  reactable.observers = filteredObservers
 
+proc newSubscription[A, B](observable: Observable[A], observer: Observer[B]): Subscription =
+  proc unsubscribeProc() =
+    observable.removeObserver(observer)
+
+  return Subscription(unsubscribeProc: unsubscribeProc)
+
+proc unsubscribe*(subscription: Subscription) =
+  subscription.unsubscribeProc()
+  
 proc newObserver*[T](
   next: NextCallback[T], 
   error: ErrorCallback = nil,
@@ -55,25 +64,21 @@ proc newObserver*[T](
     complete: complete,
   )
 
-proc removeObserver*[T](reactable: Observable[T], observer: Observer[T]) =
-  let filteredObservers = reactable.observers.filterIt(it != observer)
-  reactable.observers = filteredObservers
-
-proc unsubscribe*[T](subscription: Subscription[T]) =
-  subscription.observable.removeObserver(subscription.observer)
-
 proc newObservable*[T](valueProc: proc(observer: Observer[T])): Observable[T] =
-  result = Observable[T](
+  let newObs = Observable[T](
     observers: @[],
     completed: true,
     completeProc: proc() = discard
   )
   
-  proc subscribeProc(observer: Observer[T]) =
+  proc subscribeProc(observer: Observer[T]): Subscription =
     rerouteError(observer):
       valueProc(observer)
+    
+    return newSubscription(newObs, observer)
+  newObs.subscribeProc = subscribeProc
   
-  result.subscribeProc = subscribeProc
+  return newObs
 
 proc newObservable*[T](value: T): Observable[T] =
   proc valueProc(observer: Observer[T]) =
@@ -87,15 +92,14 @@ proc newObservable*[T](value: T): Observable[T] =
 proc subscribe*[T](
   reactable: Observable[T]; 
   observer: Observer[T]
-): Subscription[T] {.discardable.} =  
-  reactable.subscribeProc(observer)
-  return newSubscription(reactable, observer)
+): Subscription {.discardable.} =  
+  return reactable.subscribeProc(observer)
 
 proc subscribe*[T](
   reactable: Observable[T],
   next: NextCallback[T],
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil
-): Subscription[T] {.discardable.} =
+): Subscription {.discardable.} =
   let observer = newObserver[T](next, error, complete)
   return reactable.subscribe(observer)

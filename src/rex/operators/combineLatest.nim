@@ -8,6 +8,8 @@ proc combineLatest*[A, B](
   source2Obs: Observable[B] 
 ): Observable[(A, B)] =
   privateAccess(Observable)
+  privateAccess(Subscription)
+  
   let combinedObservable = Observable[(A, B)](
     completed: source1Obs.completed and source2Obs.completed,
     observers: @[]
@@ -21,19 +23,25 @@ proc combineLatest*[A, B](
   combinedObservable.completeProc = proc() =
     completeOperatorObservable(combinedObservable)
   
-  combinedObservable.subscribeProc = proc(observer: Observer[(A, B)]) =
+  combinedObservable.subscribeProc = proc(observer: Observer[(A, B)]): Subscription =
     proc onSource1Next(value: A) =
       source1.latest = some(value)
       if source1.latest.isSome() and source2.latest.isSome():
         observer.next((source1.latest.get(), source2.latest.get()))
     let source1Observer = newForwardingObserver(observer, onSource1Next)
-    source1.obs.subscribe(source1Observer)
+    let subscription1 = source1.obs.subscribe(source1Observer)
     
     proc onSource2Next(value: B) =
       source2.latest = some(value)
       if source1.latest.isSome() and source2.latest.isSome():
         observer.next((source1.latest.get(), source2.latest.get()))
     let source2Observer = newForwardingObserver(observer, onSource2Next)
-    source2.obs.subscribe(source2Observer)
+    let subscription2 = source2.obs.subscribe(source2Observer)
+    
+    return Subscription(
+      unsubscribeProc: proc() =
+        subscription1.unsubscribe()
+        subscription2.unsubscribe()
+    )
 
   return combinedObservable

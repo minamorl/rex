@@ -109,7 +109,6 @@ suite "Operators - filter":
     let filteredObservable = observable
       .filter(proc(value: int): bool = 
         raise newException(ValueError, "Some error")
-        return true
       )
     
     # WHEN
