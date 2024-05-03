@@ -3,18 +3,6 @@ import std/[importutils, options]
 
 type CombinationMember[T] = ref tuple[obs: Observable[T], latest: Option[T]]
 
-proc combinedComplete[T](observable: Observable[T]) =
-  privateAccess(Observable)
-  if observable.completed:
-    return
-  
-  for observer in observable.observers:
-    if observer.hasCompleteCallback():
-      observer.complete()
-  
-  observable.observers = @[]
-  observable.completed = true
-
 proc combineLatest*[A, B](
   source1Obs: Observable[A],
   source2Obs: Observable[B] 
@@ -31,7 +19,7 @@ proc combineLatest*[A, B](
   source2[] = (source2Obs, none(B))
   
   combinedObservable.completeProc = proc() =
-    combinedComplete(combinedObservable)
+    completeOperatorObservable(combinedObservable)
   
   combinedObservable.subscribeProc = proc(observer: Observer[(A, B)]) =
     proc onSource1Next(value: A) =

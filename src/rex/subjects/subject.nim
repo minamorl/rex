@@ -32,4 +32,11 @@ proc next*[T](subj: Subject[T], values: varargs[T]) =
   for value in values:
       subj.nextProc(value)
 
+proc complete*[T](reactable: Subject[T]) =
+  privateAccess(Observable)
+  if reactable.completed:
+    return
+  
+  reactable.completeProc()
+
 proc asObservable*[T](source: Subject[T]): Observable[T] = source

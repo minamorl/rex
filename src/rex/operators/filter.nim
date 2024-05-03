@@ -1,18 +1,6 @@
 import ./operatorTypes
 import std/[importutils]
 
-proc filterComplete[T](observable: Observable[T]) =
-  privateAccess(Observable)
-  if observable.completed:
-    return
-  
-  for observer in observable.observers:
-    if observer.hasCompleteCallback():
-      observer.complete()
-  
-  observable.observers = @[]
-  observable.completed = true
-
 proc filterSubscribe[T](
   parent: Observable[T], 
   observer: Observer[T],
@@ -37,7 +25,7 @@ proc filter*[T](
   )
   
   filterObservable.completeProc = proc() =
-    filterComplete(filterObservable)
+    completeOperatorObservable(filterObservable)
     
   filterObservable.subscribeProc = proc(observer: Observer[T]) =
     filterSubscribe(source, observer, filterCond)

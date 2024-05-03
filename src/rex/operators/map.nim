@@ -1,18 +1,6 @@
 import ./operatorTypes
 import std/[importutils]
 
-proc mapComplete[T](observable: Observable[T]) =
-  privateAccess(Observable)
-  if observable.completed:
-    return
-  
-  for observer in observable.observers:
-    if observer.hasCompleteCallback():
-      observer.complete()
-  
-  observable.observers = @[]
-  observable.completed = true
-
 proc mapSubscribe[SOURCE, RESULT](
   parent: Observable[SOURCE], 
   observer: Observer[RESULT],
@@ -37,7 +25,7 @@ proc map*[SOURCE, RESULT](
   )
   
   mapObservable.completeProc = proc() =
-    mapComplete(mapObservable)
+    completeOperatorObservable(mapObservable)
   
   mapObservable.subscribeProc = proc(observer: Observer[RESULT]) =
     mapSubscribe(parent, observer, mapper)

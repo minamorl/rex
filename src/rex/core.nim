@@ -84,7 +84,6 @@ proc newObservable*[T](value: T): Observable[T] =
     
   return newObservable(valueProc)
 
-
 proc subscribe*[T](
   reactable: Observable[T]; 
   observer: Observer[T]
@@ -100,9 +99,3 @@ proc subscribe*[T](
 ): Subscription[T] {.discardable.} =
   let observer = newObserver[T](next, error, complete)
   return reactable.subscribe(observer)
-
-proc complete*[T](reactable: Observable[T]) =
-  if reactable.completed:
-    return
-  
-  reactable.completeProc()
