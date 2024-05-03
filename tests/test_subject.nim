@@ -111,9 +111,46 @@ suite "Subject":
     # THEN
     check observable.observers.len == 0
   
-  # TODO tests for Subjects:
-  # test: """
-  #   GIVEN a cold observable with a subscriber with an error callback
-  #   WHEN subscription callback throws an error
-  #   THEN it should call the error callback
-  # """
+  test """
+    GIVEN a completed int subject
+    WHEN subscribing to it
+    THEN it should not emit anything and not have any observers/subscribers
+  """:
+    # GIVEN
+    let observable = newSubject[int]()
+    var receivedValues: seq[int] = @[]
+    observable.complete()
+    privateAccess(Observable[int])
+    
+    # WHEN
+    let subscription = observable.subscribe((value: int) => receivedValues.add(value))
+    observable.next(1,2,3)
+    
+    # THEN
+    check observable.observers.len == 0
+    let expected: seq[int] = @[]
+    check receivedValues == expected
+    
+  test """
+    GIVEN a subject with a subscriber with an error callback
+    WHEN subscription callback throws an error
+    THEN it should call the error callback each time next is called
+  """:
+    # GIVEN
+    var receivedErrors: seq[ref CatchableError] = @[]
+    var receivedValues: seq[int] = @[]
+    let subject = newSubject[int]()
+    
+    # WHEN
+    subject.subscribe(
+      next = proc(value: int) = 
+        receivedValues.add(value)
+        raise newException(ValueError, "Some error"),
+      error = (error: ref CatchableError) => receivedErrors.add(error)
+    )
+    subject.next(5)
+    
+    check receivedValues == @[5]
+    check receivedErrors.len == 1
+    check receivedErrors[0].msg == "Some error"
+

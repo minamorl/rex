@@ -14,6 +14,9 @@ proc newSubject*[T](): Subject[T] =
   )
   
   subj.subscribeProc = proc(observer: Observer[T]): Subscription =
+    if subj.completed:
+      return
+    
     subj.observers.add(observer)
     
     return Subscription(
@@ -35,14 +38,18 @@ proc newSubject*[T](): Subject[T] =
   return subj
 
 proc next*[T](subj: Subject[T], values: varargs[T]) =
+  privateAccess(Observable)
+  if subj.completed:
+    return
+  
   for value in values:
       subj.nextProc(value)
 
-proc complete*[T](reactable: Subject[T]) =
+proc complete*[T](subj: Subject[T]) =
   privateAccess(Observable)
-  if reactable.completed:
+  if subj.completed:
     return
   
-  reactable.completeProc()
+  subj.completeProc()
 
 proc asObservable*[T](source: Subject[T]): Observable[T] = source

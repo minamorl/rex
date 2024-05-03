@@ -7,9 +7,8 @@ proc mapSubscribe[SOURCE, RESULT](
   mapper: proc(value: SOURCE): RESULT {.closure.}
 ): Subscription = 
   proc onParentNext(value: SOURCE) =
-    rerouteError(observer):
-      let newValue = mapper(value)
-      observer.next(newValue)
+    let newValue = mapper(value)
+    observer.next(newValue)
     
   let parentObserver = newForwardingObserver(observer, onParentNext)
   let subscription = parent.subscribe(parentObserver)

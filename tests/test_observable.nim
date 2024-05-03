@@ -204,8 +204,8 @@ suite "Observable":
       error = (error: ref CatchableError) => receivedErrors.add(error)
     )
     
-    check receivedValues == @[5]
-    check receivedErrors.len == 1
+    check receivedValues == @[5, 4, 3]
+    check receivedErrors.len == 3
     check receivedErrors[0].msg == "Some error"
 
   test """
@@ -237,9 +237,9 @@ suite "Observable":
     )
     observable.subscribe((value: int) => receivedValues2.add(value))
     
-    check receivedErrors1.len == 1
+    check receivedErrors1.len == 3
     check receivedErrors1[0].msg == "Some error"
-    check receivedErrors2.len == 1
+    check receivedErrors2.len == 3
     check receivedErrors2[0].msg == "Some error"
     check receivedValues1 == @[5, 4, 3]
     check receivedValues2 == @[5, 4, 3]

@@ -7,9 +7,8 @@ proc filterSubscribe[T](
   filterCond: proc(value: T): bool {.closure.}
 ): Subscription =   
   proc onParentNext(value: T) =
-    rerouteError(observer):
-      if filterCond(value):
-        observer.next(value)
+    if filterCond(value):
+      observer.next(value)
     
   let parentObserver = newForwardingObserver(observer, onParentNext)
   let subscription = parent.subscribe(parentObserver)

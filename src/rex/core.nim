@@ -58,8 +58,15 @@ proc newObserver*[T](
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil,
 ): Observer[T] =
+  proc nextProc(value: T) =
+    try:
+      next(value)
+    except CatchableError as e:
+      if not error.isNil():
+        error(e)
+
   Observer[T](
-    next: next, 
+    next: nextProc, 
     error: error, 
     complete: complete,
   )

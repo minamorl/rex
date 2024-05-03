@@ -17,6 +17,12 @@ proc newForwardingObserver*[SOURCE, RESULT](
     if observer.hasErrorCallback():
       observer.error(error)
   
+  proc forwardNext(source: SOURCE) = 
+    try:
+      next(source)
+    except CatchableError as e:
+      forwardError(e)
+  
   return newObserver[SOURCE](
     next = next, 
     complete = forwardComplete,
