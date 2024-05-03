@@ -17,13 +17,16 @@ type
     next*: NextCallback[T]
     error*: ErrorCallback
     complete*: CompleteCallback
-    observed: Observable[T] # Observable this observer is subscribed to
 
   Observable*[T] = ref object of RootObj
     observers: seq[Observer[T]]
-    initialHandler: proc(observer: Observer[T])
-    hasInitialValues: bool # Indicates whether the observable has values that must be emitted immediately when somebody subscribes to it. If this is true, initialHandler *must* not be nil. This is true for cold observables, ReplaySubjects, BehaviorSubjects and similar
+    subscribeProc: proc(observer: Observer[T])
+    completeProc: proc()
     completed: bool
+  
+  Subscription*[T] = ref object
+    observable: Observable[T]
+    observer: Observer[T]
 
 proc hasErrorCallback*(observer: Observer): bool =
   not observer.error.isNil()
@@ -37,7 +40,10 @@ template rerouteError*(observer: Observer, body: untyped) =
   except CatchableError as e:
     if observer.hasErrorCallback():
       observer.error(e)
-      
+
+proc newSubscription[T](observable: Observable[T], observer: Observer[T]): Subscription[T] =
+  Subscription[T](observable: observable, observer: observer)
+
 proc newObserver*[T](
   next: NextCallback[T], 
   error: ErrorCallback = nil,
@@ -48,53 +54,50 @@ proc newObserver*[T](
     error: error, 
     complete: complete,
   )
-  
-proc newObservable*[T](valueProc: proc(observer: Observer[T])): Observable[T] =
-  Observable[T](
-    observers: @[],
-    initialHandler: valueProc,
-    hasInitialValues: true,
-    completed: true
-  )  
-
-proc newObservable*[T](value: T): Observable[T] =
-  proc handleObserver(observer: Observer[T]) =
-    rerouteError(observer):
-      observer.next(value)
-    
-  return newObservable(handleObserver)
 
 proc removeObserver*[T](reactable: Observable[T], observer: Observer[T]) =
   let filteredObservers = reactable.observers.filterIt(it != observer)
   reactable.observers = filteredObservers
 
-proc unsubscribe*[T](observer: Observer[T]) =
-  removeObserver(observer.observed, observer)
+proc unsubscribe*[T](subscription: Subscription[T]) =
+  subscription.observable.removeObserver(subscription.observer)
+
+proc newObservable*[T](valueProc: proc(observer: Observer[T])): Observable[T] =
+  result = Observable[T](
+    observers: @[],
+    completed: true,
+    completeProc: proc() = discard
+  )
+  
+  proc subscribeProc(observer: Observer[T]) =
+    rerouteError(observer):
+      valueProc(observer)
+  
+  result.subscribeProc = subscribeProc
+
+proc newObservable*[T](value: T): Observable[T] =
+  proc valueProc(observer: Observer[T]) =
+    observer.next(value)
+    
+    if observer.hasCompleteCallback():
+      observer.complete()
+    
+  return newObservable(valueProc)
+
 
 proc subscribe*[T](
   reactable: Observable[T]; 
   observer: Observer[T]
-): Observer[T] {.discardable.} =
-  observer.observed = reactable
-  
-  if reactable.completed and observer.hasCompleteCallback():
-    observer.complete()
-  
-  if not reactable.completed:  
-    reactable.observers.add(observer)
-  
-  if reactable.hasInitialValues:
-    rerouteError(observer):
-      reactable.initialHandler(observer)
-  
-  return observer
+): Subscription[T] {.discardable.} =  
+  reactable.subscribeProc(observer)
+  return newSubscription(reactable, observer)
 
 proc subscribe*[T](
   reactable: Observable[T],
   next: NextCallback[T],
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil
-): Observer[T] {.discardable.} =
+): Subscription[T] {.discardable.} =
   let observer = newObserver[T](next, error, complete)
   return reactable.subscribe(observer)
 
@@ -102,8 +105,4 @@ proc complete*[T](reactable: Observable[T]) =
   if reactable.completed:
     return
   
-  reactable.completed = true
-  for observer in reactable.observers:
-    if observer.hasCompleteCallback():
-      observer.complete()
-  reactable.observers = @[]
+  reactable.completeProc()

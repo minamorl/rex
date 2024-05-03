@@ -1,3 +1,3 @@
-import ./operators/[filter, map, tap, throttle]
+import ./operators/[filter, map, tap, throttle, combineLatest]
 
-export filter, map, tap, throttle
+export filter, map, tap, throttle, combineLatest

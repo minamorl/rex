@@ -6,7 +6,7 @@ proc toNewObservable*[SOURCE, RESULT](
   source: Observable[SOURCE],
   initialHandler: proc(observer: Observer[RESULT]) {.closure.}
 ): Observable[RESULT] =
-  privateAccess(Observable[SOURCE])
+  privateAccess(Observable)
   return Observable[RESULT](
     completed: source.completed,
     hasInitialValues: source.hasInitialValues,
@@ -34,7 +34,7 @@ proc newForwardingObserver*[SOURCE, RESULT](
     error = forwardError
   ) 
 
-proc newConnectingObserver[SOURCE, RESULT](
+proc newConnectingObserver*[SOURCE, RESULT](
   source: Observable[SOURCE], 
   target: Observable[RESULT], 
   next: NextCallback[SOURCE]
@@ -61,8 +61,10 @@ proc connect*[SOURCE, RESULT](
   target: Observable[RESULT], 
   next: NextCallback[SOURCE]
 ) =
-  let connection =newConnectingObserver(source, target, next)
-  discard source.subscribe(connection)
+  let connection = newConnectingObserver(source, target, next)
+  echo "Connect Target: ", target.repr
+  echo "Connect Source: ", source.repr
+  discard source.subscribe(connection, emitInitialValues = false)
 
 proc forward*[T](source: Observable[T], value: T) =
   privateAccess(Observable)

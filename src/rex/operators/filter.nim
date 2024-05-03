@@ -1,35 +1,45 @@
 import ./operatorTypes
 import std/[importutils]
 
-proc newFilterObservable[T](
-  parent: Observable[T],
-  obsFilter: proc(value: T): bool
-): Observable[T] =
-  proc initialHandler(childObserver: Observer[T]) =
-    ## Handles forwarding events for when somebody initially subscribes to an observable.
-    ## The childObserver is either a temporary observer created for only this purpose or the
-    ## observer provided for subscribing.
-    proc onNextInitially(value: T) =
-      rerouteError(childObserver):
-        if obsFilter(value):
-          childObserver.next(value)
-    let tempObserver = newForwardingObserver(childObserver, onNextInitially)
-    
-    privateAccess(Observable[T])
-    parent.initialHandler(tempObserver)
-    parent.removeObserver(tempObserver)
+proc filterComplete[T](observable: Observable[T]) =
+  privateAccess(Observable)
+  if observable.completed:
+    return
   
-  return toNewObservable(parent, initialHandler)
+  for observer in observable.observers:
+    if observer.hasCompleteCallback():
+      observer.complete()
+  
+  observable.observers = @[]
+  observable.completed = true
+
+proc filterSubscribe[T](
+  parent: Observable[T], 
+  observer: Observer[T],
+  filterCond: proc(value: T): bool {.closure.}
+) = 
+  proc onParentNext(value: T) =
+    rerouteError(observer):
+      if filterCond(value):
+        observer.next(value)
+    
+  let parentObserver = newForwardingObserver(observer, onParentNext)
+  parent.subscribe(parentObserver)
 
 proc filter*[T](
   source: Observable[T], 
   filterCond: proc(value: T): bool {.closure.}
 ): Observable[T] =
-  let newObservable = newFilterObservable[T](source, filterCond)
+  privateAccess(Observable)
+  let filterObservable = Observable[T](
+    completed: source.completed,
+    observers: @[],
+  )
   
-  proc filterSubscription(value: T) =
-    if filterCond(value):
-      newObservable.forward(value)
+  filterObservable.completeProc = proc() =
+    filterComplete(filterObservable)
+    
+  filterObservable.subscribeProc = proc(observer: Observer[T]) =
+    filterSubscribe(source, observer, filterCond)
   
-  source.connect(newObservable, filterSubscription)
-  return newObservable
+  return filterObservable
