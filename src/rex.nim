@@ -1,5 +1,5 @@
-import ./rex/[core, operators, reactors]
+import ./rex/[core, operators, subjects]
 
 export core except forward
 export operators
-export reactors
+export subjects
