@@ -37,6 +37,6 @@ proc throttle*[T](
     completeOperatorObservable(throttleObservable)
   
   throttleObservable.subscribeProc = proc(observer: Observer[T]): Subscription =
-    throttleSubscribe(source, observer, throttleProc)
+    return throttleSubscribe(source, observer, throttleProc)
     
   return throttleObservable
