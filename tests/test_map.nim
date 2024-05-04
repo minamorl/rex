@@ -141,3 +141,21 @@ suite "Operators - map":
     # THEN
     check receivedErrors.len == 1
     check receivedErrors[0].msg == "Some error"
+  
+  test """
+    GIVEN an int subject
+    WHEN using the map operator
+    THEN it should generate an observbale that emits the mapped value on subscribe
+  """:
+    # GIVEN
+    var receivedValues: seq[int] = @[]
+    let subject = newSubject[int]()
+    let mappedObservable = subject
+      .map((value: int) => value*2)
+    
+    # WHEN
+    mappedObservable.subscribe((value: int) => receivedValues.add(value))
+    subject.next(5, 4, 3)
+    
+    # THEN
+    check receivedValues == @[10, 8, 6]

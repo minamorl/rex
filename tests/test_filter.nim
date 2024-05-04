@@ -145,3 +145,21 @@ suite "Operators - filter":
     # THEN
     check receivedErrors.len == 1
     check receivedErrors[0].msg == "Some error"
+
+  test """
+    GIVEN an int subject
+    WHEN using the filter operator
+    THEN it should generate an observbale that emits the values that fulfill the filter condition
+  """:
+    # GIVEN
+    var receivedValues: seq[int] = @[]
+    let subject = newSubject[int]()
+    let filteredObservable = subject
+      .filter((value: int) => value mod 2 == 0)
+    
+    # WHEN
+    filteredObservable.subscribe((value: int) => receivedValues.add(value))
+    subject.next(5, 4, 3)
+    
+    # THEN
+    check receivedValues == @[4]
