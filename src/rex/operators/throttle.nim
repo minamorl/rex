@@ -18,7 +18,6 @@ proc throttleSubscribe[T](
   let sourceObserver = newForwardingObserver(destinationObserver, onSourceNext)
   let subscription = source.subscribe(sourceObserver)
 
-  privateAccess(Subscription)
   return newSubscription(subscription)
 
 proc throttle*[T](

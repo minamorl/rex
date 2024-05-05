@@ -8,7 +8,6 @@ proc combineLatest*[A, B](
   source2Obs: Observable[B] 
 ): Observable[(A, B)] =
   privateAccess(Observable)
-  privateAccess(Subscription)
   
   let combinedObservable = Observable[(A, B)](
     completed: source1Obs.completed and source2Obs.completed,

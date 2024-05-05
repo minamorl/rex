@@ -13,7 +13,6 @@ proc filterSubscribe[T](
   let sourceObserver = newForwardingObserver(observer, onSourceNext)
   let sourceSubscription = source.subscribe(sourceObserver)
   
-  privateAccess(Subscription)
   return newSubscription(sourceSubscription)
 
 proc filter*[T](
