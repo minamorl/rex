@@ -54,6 +54,12 @@ proc unsubscribe*(subscription: Subscription) =
   subscription.unsubscribeProc()
   
 proc doWork*(subscription: Subscription): Subscription {.discardable.} =
+  ## Convenience proc for starting the asynchronous work on cold observables.
+  ## 
+  ## If the subscription is to a hot observable, this does nothing.
+  ## 
+  ## If the subscription is to a cold observable, this will blocks until all 
+  ## asynchronous work of the observable in the subscription is done.
   if subscription.hasAsyncWork():
     waitFor subscription.fut
   
@@ -110,9 +116,15 @@ proc subscribe*[T](
   observer: Observer[T]
 ): Subscription {.discardable.} =
   ## Subscribes an observer to an observable.
-  ## If the observable is hot, then nothing happens on subscribe.
-  ## If the observable is cold, it will start emitting all values 
-  ## before the first async operation in the cold observable's valueProc.
+  ## 
+  ## If the observable is hot, then the observer just starts listening to future values.
+  ## 
+  ## If the observable is cold, it will start executing the cold observables `valueProc`.
+  ## This operation is asynchronous for cold observables, as any of the observable's observers
+  ## may do asynchronous work as part of their callbacks that get executed upon subscription.
+  ## This asynchronous work is not immediately executed and can be manually triggered via the 
+  ## returned `Subscription` (See `doWork`) 
+  
   return reactable.subscribeProc(observer)
 
 proc subscribe*[T](
