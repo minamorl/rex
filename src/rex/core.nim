@@ -101,7 +101,7 @@ proc newObservable*[T](value: T): Observable[T] =
     let nextFuture = observer.next(value)
     let completeFuture = observer.complete()
     
-    await all([nextFuture, completeFuture])
+    await all [nextFuture, completeFuture]
     
   return newObservable(valueProc)
 

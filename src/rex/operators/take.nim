@@ -26,8 +26,7 @@ proc takeSubscribe[T](
   
     let hasEmittedEnough = valueCounter >= count
     if hasEmittedEnough:
-      await destination.completeProc()
-      await observer.complete()
+      await all [destination.completeProc(), observer.complete()]
       source.removeObserver(sourceObserver)
       hasCompleted = true
 

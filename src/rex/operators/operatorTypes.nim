@@ -1,4 +1,4 @@
-import std/[asyncdispatch, importutils]
+import std/[asyncdispatch, importutils, sequtils]
 import ../core
 export core, asyncdispatch, importutils
 
@@ -22,12 +22,12 @@ proc newForwardingObserver*[SOURCE, RESULT](
   ) 
 
 proc completeOperatorObservable*[T](observable: Observable[T]) {.async.} =
+  ## Starts completion of all subscribed observers at once and awaits them in parallel
   privateAccess(Observable)
   if observable.completed:
     return
   
-  for observer in observable.observers:
-    await observer.complete()
+  await all observable.observers.mapIt(it.complete())
   
   observable.observers = @[]
   observable.completed = true

@@ -39,34 +39,46 @@ proc newSubject*[T](): Subject[T] =
     
     return newSubscription(subj, observer)
   
-  proc subjNext(values: seq[T]) {.async, closure.} =
+  subj.nextProc = proc(values: seq[T]) {.async, closure.} =
+    ## Forwards new values to all subscribed observers at once and awaits them in parallel
     privateAccess(Observable)
     if subj.completed:
       return
     
-    for value in values:
-      await subj.internalNext(value)
-
-  subj.nextProc = subjNext
+    await all values.mapIt(subj.internalNext(it))
   
   subj.completeProc = proc() {.async.} =
+    ## Starts completion of all subscribed observers at once and awaits them in parallel
+    if subj.completed:
+      return
+    
     subj.completed = true
     
-    let futures: seq[Future[void]] = subj.observers
-      .mapIt(it.complete())
-    await all(futures)
+    await all subj.observers.mapIt(it.complete())
 
     subj.observers = @[]
   
   return subj
 
 proc next*[T](subj: Subject[T], values: varargs[T]) {.async.} =
+  ## Pushes a variable amount of new values through subject, forwarding it to all
+  ## of subjects subscribers. 
+  ## This operation is asynchronous, as any of the subject's observers may do 
+  ## asynchronous work as part of their callbacks.
+  ## 
+  ## The returned future must be awaited for any remaining asynchronous work of these
+  ## callbacks to be finished.
   await subj.nextProc(values.toSeq())
 
 proc nextBlock*[T](subj: Subject[T], values: varargs[T]) =
+  ## Convenience proc for `next`. Calls next and blocks until all asynchronous work is done.
   waitFor subj.nextProc(values.toSeq())
 
 proc complete*[T](subj: Subject[T]) {.async.} =
+  ## Completes the subject and informs all observers of that completion.
+  ## 
+  ## This operation is asynchronous, as any of the subject's observers may do 
+  ## asynchronous work as part of their complete callbacks.
   privateAccess(Observable)
   if subj.completed:
     return
@@ -74,6 +86,7 @@ proc complete*[T](subj: Subject[T]) {.async.} =
   await subj.completeProc()
 
 proc completeBlock*[T](subj: Subject[T]) =
+  ## Convenience proc for `complete`. Calls complete and blocks until all asynchronous work is done.
   waitFor subj.complete()
 
 proc asObservable*[T](source: Subject[T]): Observable[T] = source
