@@ -76,7 +76,7 @@ proc doWork*(subscription: Subscription): Subscription {.discardable.} =
   
   try:
     waitFor subscription.fut
-  except CatchableError as e:
+  except CatchableError as e: # TODO: Check if this try-catch is necessary, the new next closure wrapper with await should take care of this
     if not subscription.error.isNil():
       waitFor subscription.error(e)
     

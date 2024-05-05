@@ -7,26 +7,34 @@ proc takeSubscribe[T](
   observer: Observer[T],
   count: int
 ): Subscription =
+  ## The subscription closure called when an external observer registers itself with
+  ## an observable created via take operator.
   privateAccess(Observable)
-  privateAccess(Subscription)
-  let parentObserver = newForwardingObserver[T, T](observer, nil)
-  
+  privateAccess(Subscription)  
   var valueCounter = 0
-  proc onParentNext(value: T) =
-    let hasEmittedEnough = valueCounter >= count
-    if hasEmittedEnough:
-      observable.completeProc()
-      if observer.hasCompleteCallback():
-        observer.complete()
+  let parentObserver = newForwardingObserver[T, T](observer, nil)
+  var hasCompleted = false
+  proc onParentNext(value: T) {.async.} =
+    ## Forwards values from parent to whoever subscribes to the take-Observable.
+    ## When the count is reached, the take-Observable completes and unsubscribes
+    ## itself.
+    if hasCompleted:
       return
     
-    observer.next(value)
+    await observer.next(value)
     valueCounter.inc
   
-  parentObserver.next = proc(value: T) =
-    rerouteError(parentObserver):
-      onParentNext(value)
+    let hasEmittedEnough = valueCounter >= count
+    if hasEmittedEnough:
+      await observable.completeProc()
+      if observer.hasCompleteCallback():
+        await observer.complete()
+      parent.removeObserver(parentObserver)
+      hasCompleted = true
+
+  parentObserver.next = onParentNext
   let parentSubscription = parent.subscribe(parentObserver)
+  
     
   return Subscription(
     unsubscribeProc: proc() = parentSubscription.unsubscribe()
@@ -42,8 +50,8 @@ proc take*[T](
     observers: @[],
   )
   
-  takeObservable.completeProc = proc() =
-    completeOperatorObservable(takeObservable)
+  takeObservable.completeProc = proc() {.async.} =
+    await completeOperatorObservable(takeObservable)
       
   takeObservable.subscribeProc = proc(observer: Observer[T]): Subscription =
     takeSubscribe(parent, takeObservable, observer, count)

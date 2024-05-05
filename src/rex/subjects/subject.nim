@@ -4,6 +4,23 @@ import ../core
 type Subject*[T] = ref object of Observable[T]
   nextProc: proc(values: seq[T]) {.async, closure.}
 
+proc internalNext[T](subj: Subject[T], value: T) {.async.} =
+  ## Iterates over the list of observers of the subject and calls
+  ## their next callbacks with the new value
+  privateAccess(Observable)
+  # Observers may remove themselves from that list as they get
+  # triggered (e.g. if they stem from (take(1))), therefore we can't
+  # iterate over them directly, we iterate over a copy of the initial list
+  # and then check each time if the observer is still allowed to be called.
+  let initialObserverList = subj.observers
+  var futures: seq[Future[void]] = @[]
+  
+  for obs in initialObserverList:
+    let isStillObserver = subj.observers.contains(obs)
+    if isStillObserver:
+      futures.add obs.next(value)
+  
+  await all(futures)
 proc newSubject*[T](): Subject[T] =
   privateAccess(Observable)
   privateAccess(Subscription)
@@ -27,8 +44,8 @@ proc newSubject*[T](): Subject[T] =
       return
     
     for value in values:
-      for obs in subj.observers:
-        await obs.next(value)
+      await subj.internalNext(value)
+
   subj.nextProc = subjNext
   
   subj.completeProc = proc() {.async.} =
