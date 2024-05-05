@@ -18,9 +18,9 @@ type
   SyncCompleteCallback* = proc() {.closure.}
 
   Observer*[T] = ref object
-    next*: NextCallback[T]
-    error*: ErrorCallback
-    complete*: CompleteCallback
+    nextProc: NextCallback[T]
+    errorProc: ErrorCallback
+    completeProc: CompleteCallback
 
   Observable*[T] = ref object of RootObj
     observers: seq[Observer[T]]
@@ -33,18 +33,35 @@ type
     unsubscribeProc: proc()
     error: ErrorCallback
 
-proc hasErrorCallback*(observer: Observer): bool =
-  not observer.error.isNil()
+proc `next=`*[T](observer: Observer[T], next: NextCallback[T]) =
+  observer.nextProc = next
+  
+proc `error=`*[T](observer: Observer[T], error: ErrorCallback) =
+  observer.errorProc = error
+  
+proc `complete=`*[T](observer: Observer[T], complete: CompleteCallback) =
+  observer.completeProc = complete
 
-proc hasCompleteCallback*(observer: Observer): bool =
-  not observer.complete.isNil()
+proc hasNextCallback*[T](observer: Observer[T]): bool =
+  return not observer.nextProc.isNil()
 
-template rerouteError*(observer: Observer, body: untyped) =
-  try:
-    body
-  except CatchableError as e:
-    if observer.hasErrorCallback():
-      observer.error(e)
+proc hasErrorCallback*[T](observer: Observer[T]): bool =
+  return not observer.errorProc.isNil()
+
+proc hasCompleteCallback*[T](observer: Observer[T]): bool =
+  return not observer.completeProc.isNil()
+
+proc next*[T](observer: Observer[T], value: T) {.async.} =
+  if observer.hasNextCallback():
+    await observer.nextProc(value)
+
+proc error*(observer: Observer, error: ref CatchableError) {.async.} =
+  if observer.hasErrorCallback():
+    await observer.errorProc(error)
+
+proc complete*(observer: Observer) {.async.} =
+  if observer.hasCompleteCallback():
+    await observer.completeProc()
 
 proc removeObserver*[T](reactable: Observable[T], observer: Observer[T]) =
   let filteredObservers = reactable.observers.filterIt(it != observer)
@@ -59,7 +76,7 @@ proc newSubscription*[A, B](
 
   return Subscription(
     unsubscribeProc: unsubscribeProc,
-    error: observer.error
+    error: observer.errorProc
   )
 
 let EMPTY_SUBSCRIPTION* = Subscription(
@@ -107,9 +124,9 @@ proc newObserver*[T](
         await error(e)
 
   return Observer[T](
-    next: nextProc, 
-    error: error, 
-    complete: complete,
+    nextProc: nextProc, 
+    errorProc: error, 
+    completeProc: complete,
   )
 
 proc newObserver*[T](
@@ -132,8 +149,7 @@ proc newObservable*[T](valueProc: proc(observer: Observer[T]): Future[void] {.as
     try:
       waitFor valueProc(observer)
     except CatchableError as e:
-      if observer.hasErrorCallback():
-        subscription.fut = observer.error(e)
+      subscription.fut = observer.error(e)
     
     return subscription
   newObs.subscribeProc = subscribeProc
@@ -147,17 +163,12 @@ proc newObservable*[T](valueProc: proc()): Observable[T] =
   return newObservable(asyncValueProc)
     
 proc newObservable*[T](value: T): Observable[T] =
-  proc valueProc(observer: Observer[T]) {.async.} =
-    var futures = newSeq[Future[void]]()
-    
+  proc valueProc(observer: Observer[T]) {.async.} =    
     let nextFuture = observer.next(value)
-    futures.add(nextFuture)
+    let completeFuture = observer.complete()
     
-    if observer.hasCompleteCallback():
-      let completeFuture = observer.complete()
-      futures.add(completeFuture)
+    await all([nextFuture, completeFuture])
     
-    await all(futures)
   return newObservable(valueProc)
 
 proc subscribe*[T](

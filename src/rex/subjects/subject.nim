@@ -52,7 +52,6 @@ proc newSubject*[T](): Subject[T] =
     subj.completed = true
     
     let futures: seq[Future[void]] = subj.observers
-      .filterIt(it.hasCompleteCallback())
       .mapIt(it.complete())
     await all(futures)
 

@@ -11,6 +11,7 @@ proc takeSubscribe[T](
   ## an observable created via take operator.
   privateAccess(Observable)
   privateAccess(Subscription)  
+  privateAccess(Observer)  
   var valueCounter = 0
   let parentObserver = newForwardingObserver[T, T](observer, nil)
   var hasCompleted = false
@@ -27,8 +28,7 @@ proc takeSubscribe[T](
     let hasEmittedEnough = valueCounter >= count
     if hasEmittedEnough:
       await observable.completeProc()
-      if observer.hasCompleteCallback():
-        await observer.complete()
+      await observer.complete()
       parent.removeObserver(parentObserver)
       hasCompleted = true
 

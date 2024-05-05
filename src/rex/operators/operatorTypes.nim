@@ -10,12 +10,10 @@ proc newForwardingObserver*[SOURCE, RESULT](
   ## This is used particularly for initial data handling when subscribing
   ## to e.g. cold observables.
   let  forwardComplete: CompleteCallback = proc() {.async.} = 
-    if observer.hasCompleteCallback():
-      await observer.complete()
+    await observer.complete()
   
   let forwardError: ErrorCallback = proc(error: ref CatchableError) {.async.} =
-    if observer.hasErrorCallback():
-      await observer.error(error)
+    await observer.error(error)
   
   return newObserver[SOURCE](
     next = next, 
@@ -29,8 +27,7 @@ proc completeOperatorObservable*[T](observable: Observable[T]) {.async.} =
     return
   
   for observer in observable.observers:
-    if observer.hasCompleteCallback():
-      await observer.complete()
+    await observer.complete()
   
   observable.observers = @[]
   observable.completed = true
