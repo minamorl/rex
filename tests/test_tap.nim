@@ -16,6 +16,7 @@ suite "Operators - tap":
     newObservable[int](obsValue)
       .tap((value: int) => tapValues.add(value))
       .subscribe((value: int) => receivedValues.add(value))
+      .doWork()
     
     # THEN
     check receivedValues == @[obsValue]
@@ -31,16 +32,17 @@ suite "Operators - tap":
     var receivedValues: seq[int] = @[]
     let obsValue = 5
     let observable = newObservable[int](
-      proc(observer: Observer[int]) =
-        observer.next(5)
-        observer.next(4)
-        observer.next(3)
+      proc(observer: Observer[int]) {.async.} =
+        await observer.next(5)
+        await observer.next(4)
+        await observer.next(3)
     )
     
     # WHEN
     observable
       .tap((value: int) => tapValues.add(value))
       .subscribe((value: int) => receivedValues.add(value))
+      .doWork()
     
     # THEN
     check receivedValues == @[5,4,3]
@@ -65,6 +67,7 @@ suite "Operators - tap":
       .map((value: int) => value * 2)
       .tap((value: int) => afterValues.add(value))
       .subscribe((value: int) => receivedValues.add(value))
+      .doWork()
     
     # THEN
     check beforeValues == @[5]

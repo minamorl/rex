@@ -34,21 +34,23 @@ suite "Operators - combineLatest":
     let obsValue1 = 5
     let obsValue2 = "3"
     let observable1 = newObservable[int](
-      proc(obs: Observer[int]) =
-        obs.next(5)
-        obs.next(4)
-        obs.next(3)
+      proc(obs: Observer[int]) {.async.} =
+        await obs.next(5)
+        await obs.next(4)
+        await obs.next(3)
     )
     let observable2 = newObservable[string](
-      proc(obs: Observer[string]) =
-        obs.next("Bla")
-        obs.next("Blubb")
-        obs.next("Blubba")
+      proc(obs: Observer[string]) {.async.} =
+        await obs.next("Bla")
+        await obs.next("Blubb")
+        await obs.next("Blubba")
     )
     let combinedObservable: Observable[(int, string)] = combineLatest(observable1, observable2)
     
     # WHEN
-    combinedObservable.subscribe((value: (int, string)) => receivedValues.add(value))
+    combinedObservable
+      .subscribe((value: (int, string)) => receivedValues.add(value))
+      .doWork()
     
     # THEN
     let expected: seq[(int, string)] = @[
@@ -69,19 +71,21 @@ suite "Operators - combineLatest":
     let obsValue1 = 5
     let obsValue2 = "3"
     let observable1 = newObservable[int](
-      proc(obs: Observer[int]) =
-        obs.next(5)
-        obs.next(4)
-        obs.next(3)
+      proc(obs: Observer[int]) {.async.} =
+        await obs.next(5)
+        await obs.next(4)
+        await obs.next(3)
     )
     let observable2 = newSubject[string]()
     let combinedObservable: Observable[(int, string)] = combineLatest(observable1, observable2)
     
     # WHEN
-    combinedObservable.subscribe((value: (int, string)) => receivedValues.add(value))
-    observable2.next("Bla")
-    observable2.next("Blubb")
-    observable2.next("Blubba")
+    combinedObservable
+      .subscribe((value: (int, string)) => receivedValues.add(value))
+      .doWork()
+    observable2.nextBlock("Bla")
+    observable2.nextBlock("Blubb")
+    observable2.nextBlock("Blubba")
     
     # THEN
     let expected: seq[(int, string)] = @[

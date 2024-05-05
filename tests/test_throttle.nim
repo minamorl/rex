@@ -9,14 +9,14 @@ suite "Operators - throttle":
   """:
     # Given
     let observable = newObservable[int](
-      proc(obs: Observer[int]) =
-        obs.next(1)
-        obs.next(2)
-        obs.next(3)
-        sleep(10)
-        obs.next(4)
-        sleep(10)
-        obs.next(5)
+      proc(obs: Observer[int]) {.async.} =
+        await obs.next(1)
+        await obs.next(2)
+        await obs.next(3)
+        await sleepAsync(10)
+        await obs.next(4)
+        await sleepAsync(10)
+        await obs.next(5)
     )
       .throttle(proc(value: int): Duration = initDuration(milliseconds = 10))
     
@@ -41,12 +41,12 @@ suite "Operators - throttle":
     # When
     throttleObservable.subscribe((value: int) => receivedValues.add(value))
     
-    subject.next(1)
-    subject.next(2)
+    subject.nextBlock(1)
+    subject.nextBlock(2)
     sleep(10)
-    subject.next(3)
+    subject.nextBlock(3)
     sleep(10)
-    subject.next(4)
+    subject.nextBlock(4)
     
     # Then
     assert receivedValues == @[1, 3, 4]
@@ -58,14 +58,14 @@ suite "Operators - throttle":
   """:
     # Given
     let observable = newObservable[int](
-      proc(obs: Observer[int]) =
-        obs.next(1)
-        obs.next(2)
-        obs.next(3)
-        sleep(10)
-        obs.next(4)
-        sleep(10)
-        obs.next(5)
+      proc(obs: Observer[int]) {.async.} =
+        await obs.next(1)
+        await obs.next(2)
+        await obs.next(3)
+        await sleepAsync(10)
+        await obs.next(4)
+        await sleepAsync(10)
+        await obs.next(5)
     )
       .throttle((value: int) => initDuration(milliseconds = 10))
       .map((value: int) => value*2)

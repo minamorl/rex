@@ -7,13 +7,13 @@ proc throttleSubscribe[T](
   throttleProc: proc(value: T): Duration {.closure.}
 ): Subscription =
   var lastTriggerTime: MonoTime
-  proc onParentNext(value: T) =
+  proc onParentNext(value: T) {.async.} =
       let delay = throttleProc(value)
       let now = getMonoTime()
       let elapsed = now - lastTriggerTime
       if elapsed >= delay:
         lastTriggerTime = now
-        observer.next(value)
+        await observer.next(value)
   
   let parentObserver = newForwardingObserver(observer, onParentNext)
   let subscription = observable.subscribe(parentObserver)
@@ -33,8 +33,8 @@ proc throttle*[T](
     observers: @[]
   )
   
-  throttleObservable.completeProc = proc() =
-    completeOperatorObservable(throttleObservable)
+  throttleObservable.completeProc = proc() {.async.} =
+    await completeOperatorObservable(throttleObservable)
   
   throttleObservable.subscribeProc = proc(observer: Observer[T]): Subscription =
     return throttleSubscribe(source, observer, throttleProc)

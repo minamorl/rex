@@ -1,14 +1,13 @@
 import ./operatorTypes
-import std/[importutils]
 
 proc mapSubscribe[SOURCE, RESULT](
   parent: Observable[SOURCE], 
   observer: Observer[RESULT],
   mapper: proc(value: SOURCE): RESULT {.closure.}
 ): Subscription = 
-  proc onParentNext(value: SOURCE) =
+  proc onParentNext(value: SOURCE) {.async.} =
     let newValue = mapper(value)
-    observer.next(newValue)
+    await observer.next(newValue)
     
   let parentObserver = newForwardingObserver(observer, onParentNext)
   let subscription = parent.subscribe(parentObserver)
@@ -28,8 +27,8 @@ proc map*[SOURCE, RESULT](
     observers: @[],
   )
   
-  mapObservable.completeProc = proc() =
-    completeOperatorObservable(mapObservable)
+  mapObservable.completeProc = proc() {.async.} =
+    await completeOperatorObservable(mapObservable)
   
   mapObservable.subscribeProc = proc(observer: Observer[RESULT]): Subscription =
     return mapSubscribe(parent, observer, mapper)

@@ -6,9 +6,9 @@ proc filterSubscribe[T](
   observer: Observer[T],
   filterCond: proc(value: T): bool {.closure.}
 ): Subscription =   
-  proc onParentNext(value: T) =
+  proc onParentNext(value: T) {.async.} =
     if filterCond(value):
-      observer.next(value)
+      await observer.next(value)
     
   let parentObserver = newForwardingObserver(observer, onParentNext)
   let subscription = parent.subscribe(parentObserver)
@@ -28,7 +28,7 @@ proc filter*[T](
     observers: @[],
   )
   
-  filterObservable.completeProc = proc() =
+  filterObservable.completeProc = proc() {.async.} =
     completeOperatorObservable(filterObservable)
     
   filterObservable.subscribeProc = proc(observer: Observer[T]): Subscription =

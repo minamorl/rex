@@ -1,5 +1,5 @@
 import rex
-import std/[unittest, sugar]
+import std/[unittest, sugar, strutils]
 
 suite "Operators - filter":
   test """
@@ -31,10 +31,10 @@ suite "Operators - filter":
     let obsValue2 = 3
     let obsValue3 = 4
     let observable = newObservable[int](
-      proc(observer: Observer[int]) =
-        observer.next(obsValue1)
-        observer.next(obsValue2)
-        observer.next(obsValue3) 
+      proc(observer: Observer[int]) {.async.} =
+        await observer.next(obsValue1)
+        await observer.next(obsValue2)
+        await observer.next(obsValue3) 
     )
     let filteredObservable = observable.filter((value: int) => value mod 2 != 0)
     
@@ -114,12 +114,12 @@ suite "Operators - filter":
     # WHEN
     filteredObservable.subscribe(
       next = proc(value: int) = discard,
-      error = (error: ref CatchableError) => receivedErrors.add(error)
+      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
     )
     
     # THEN
     check receivedErrors.len == 1
-    check receivedErrors[0].msg == "Some error"
+    check receivedErrors[0].msg.startsWith("Some error")
 
   test """
     GIVEN a cold int observable that throws an exception
@@ -129,8 +129,8 @@ suite "Operators - filter":
     # GIVEN
     var receivedErrors: seq[ref CatchableError] = @[]
     let observable = newObservable[int](
-      proc(observer: Observer[int]) =
-        observer.next(4)
+      proc(observer: Observer[int]) {.async.} =
+        await observer.next(4)
         raise newException(ValueError, "Some error")
     )
     let filteredObservable = observable
@@ -139,12 +139,12 @@ suite "Operators - filter":
     # WHEN
     filteredObservable.subscribe(
       next = proc(value: int) = discard,
-      error = (error: ref CatchableError) => receivedErrors.add(error)
+      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
     )
     
     # THEN
     check receivedErrors.len == 1
-    check receivedErrors[0].msg == "Some error"
+    check receivedErrors[0].msg.startsWith("Some error")
 
   test """
     GIVEN an int subject
@@ -159,7 +159,7 @@ suite "Operators - filter":
     
     # WHEN
     filteredObservable.subscribe((value: int) => receivedValues.add(value))
-    subject.next(5, 4, 3)
+    subject.nextBlock(5, 4, 3)
     
     # THEN
     check receivedValues == @[4]

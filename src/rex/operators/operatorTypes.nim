@@ -1,6 +1,6 @@
-import std/[importutils]
+import std/[asyncdispatch, importutils]
 import ../core
-export core
+export core, asyncdispatch, importutils
 
 proc newForwardingObserver*[SOURCE, RESULT](
   observer: Observer[RESULT],
@@ -9,19 +9,13 @@ proc newForwardingObserver*[SOURCE, RESULT](
   ## Creates an observer that forward all events to another observer
   ## This is used particularly for initial data handling when subscribing
   ## to e.g. cold observables.
-  proc forwardComplete() = 
+  let  forwardComplete: CompleteCallback = proc() {.async.} = 
     if observer.hasCompleteCallback():
-      observer.complete()
+      await observer.complete()
   
-  proc forwardError(error: ref CatchableError) =
+  let forwardError: ErrorCallback = proc(error: ref CatchableError) {.async.} =
     if observer.hasErrorCallback():
-      observer.error(error)
-  
-  proc forwardNext(source: SOURCE) = 
-    try:
-      next(source)
-    except CatchableError as e:
-      forwardError(e)
+      await observer.error(error)
   
   return newObserver[SOURCE](
     next = next, 
@@ -29,14 +23,14 @@ proc newForwardingObserver*[SOURCE, RESULT](
     error = forwardError
   ) 
 
-proc completeOperatorObservable*[T](observable: Observable[T]) =
+proc completeOperatorObservable*[T](observable: Observable[T]) {.async.} =
   privateAccess(Observable)
   if observable.completed:
     return
   
   for observer in observable.observers:
     if observer.hasCompleteCallback():
-      observer.complete()
+      await observer.complete()
   
   observable.observers = @[]
   observable.completed = true

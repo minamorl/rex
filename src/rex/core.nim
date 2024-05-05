@@ -95,21 +95,21 @@ converter toAsync*(complete: SyncCompleteCallback): CompleteCallback =
     proc() {.async.} = complete()
 
 proc newObserver*[T](
-  obsNext: NextCallback[T],
-  obsError: ErrorCallback = nil,
-  obsComplete: CompleteCallback = nil
+  next: NextCallback[T],
+  error: ErrorCallback = nil,
+  complete: CompleteCallback = nil
 ): Observer[T] =
   proc nextProc(value: T) {.async.} =
     try:
-      await obsNext(value)
+      await next(value)
     except CatchableError as e:
-      if not obsError.isNil():
-        await obsError(e)
+      if not error.isNil():
+        await error(e)
 
   return Observer[T](
     next: nextProc, 
-    error: obsError, 
-    complete: obsComplete,
+    error: error, 
+    complete: complete,
   )
 
 proc newObserver*[T](
@@ -117,8 +117,7 @@ proc newObserver*[T](
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil
 ): Observer[T] =
-  proc asyncNext(value: T): Future[void] {.async.} = 
-    next(value)
+  proc asyncNext(value: T) {.async.} = next(value)
   return newObserver[T](asyncNext, error, complete)
   
 proc newObservable*[T](valueProc: proc(observer: Observer[T]): Future[void] {.async.}): Observable[T] =
@@ -131,11 +130,11 @@ proc newObservable*[T](valueProc: proc(observer: Observer[T]): Future[void] {.as
   proc subscribeProc(observer: Observer[T]): Subscription =
     let subscription = newSubscription(newObs, observer)
     try:
-      subscription.fut = valueProc(observer)
+      waitFor valueProc(observer)
     except CatchableError as e:
       if observer.hasErrorCallback():
         subscription.fut = observer.error(e)
-      
+    
     return subscription
   newObs.subscribeProc = subscribeProc
   
@@ -158,7 +157,7 @@ proc newObservable*[T](value: T): Observable[T] =
       let completeFuture = observer.complete()
       futures.add(completeFuture)
     
-    return all(futures)
+    await all(futures)
   return newObservable(valueProc)
 
 proc subscribe*[T](

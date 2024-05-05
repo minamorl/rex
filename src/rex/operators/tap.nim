@@ -15,3 +15,12 @@ proc tap*[T](
 ): Observable[T] =
   let observer = newObserver[T](tapProc, error, complete)
   return source.tap(observer)
+
+proc tap*[T](
+  source: Observable[T],
+  tapProc: SyncNextCallback[T],
+  error: ErrorCallback = nil,
+  complete: CompleteCallback = nil
+): Observable[T] =
+  proc asyncTapProc(value: T) {.async.} = tapProc(value)
+  return source.tap(asyncTapProc, error, complete)
