@@ -21,6 +21,7 @@ proc internalNext[T](subj: Subject[T], value: T) {.async.} =
       futures.add obs.next(value)
   
   await all(futures)
+
 proc newSubject*[T](): Subject[T] =
   privateAccess(Observable)
   privateAccess(Subscription)
