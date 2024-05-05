@@ -35,18 +35,6 @@ proc complete*(observer: Observer) {.async.} =
   if observer.hasCompleteCallback():
     await observer.completeProc()
 
-converter toAsync*(errorProc: SyncErrorCallback): ErrorCallback =
-  return if errorProc.isNil():
-      nil
-    else:
-      proc(error: ref CatchableError) {.async.} = errorProc(error)
-      
-converter toAsync*(complete: SyncCompleteCallback): CompleteCallback =
-  return if complete.isNil():
-    nil
-  else:
-    proc() {.async.} = complete()
-
 proc newObserver*[T](
   next: NextCallback[T],
   error: ErrorCallback = nil,

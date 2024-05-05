@@ -51,6 +51,13 @@ proc doWork*(subscription: Subscription): Subscription {.discardable.} =
   
   return subscription
 
+let EMPTY* = Observable[void](
+  observers: @[],
+  completed: true,
+  completeProc: completeDoNothing,
+  subscribeProc: proc(observer: Observer[void]): Subscription = EMPTY_SUBSCRIPTION
+)
+
 proc newObservable*[T](valueProc: proc(observer: Observer[T]): Future[void] {.async.}): Observable[T] =
   ## Creates a cold observable that emits values to subscribed observers via `valueProc`.
   ## Upon subscription, `valueProc` will be executed *to completion*.
@@ -58,7 +65,7 @@ proc newObservable*[T](valueProc: proc(observer: Observer[T]): Future[void] {.as
   let newObs = Observable[T](
     observers: @[],
     completed: true,
-    completeProc: proc() {.async.} = discard
+    completeProc: completeDoNothing
   )
   
   proc subscribeProc(observer: Observer[T]): Subscription =
@@ -74,12 +81,14 @@ proc newObservable*[T](valueProc: proc(observer: Observer[T]): Future[void] {.as
   return newObs
 
 proc newObservable*[T](valueProc: proc()): Observable[T] =
+  ## Convenience proc that allows creating a cold observable with a purely synchronous `valueProc`.
   proc asyncValueProc(observer: Observer[T]): Future[void] {.async.} =
     valueProc()
   
   return newObservable(asyncValueProc)
     
 proc newObservable*[T](value: T): Observable[T] =
+  ## Convenience proc that allows creating a cold observable from a value
   proc valueProc(observer: Observer[T]) {.async.} =    
     let nextFuture = observer.next(value)
     let completeFuture = observer.complete()
@@ -92,6 +101,10 @@ proc subscribe*[T](
   reactable: Observable[T]; 
   observer: Observer[T]
 ): Subscription {.discardable.} =
+  ## Subscribes an observer to an observable.
+  ## If the observable is hot, then nothing happens on subscribe.
+  ## If the observable is cold, it will start emitting all values 
+  ## before the first async operation in the cold observable's valueProc.
   return reactable.subscribeProc(observer)
 
 proc subscribe*[T](
@@ -100,6 +113,9 @@ proc subscribe*[T](
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil
 ): Subscription {.discardable.} =
+  ## Convenience proc that allows subscribing by just defining the next/error/complete callbacks.
+  ## If called with `SyncErrorCallback` or `CompleteErrorCallback` type those will be immediately
+  ## converted via the `functionType.toAsync` converters.
   let observer = newObserver[T](next, error, complete)
   return reactable.subscribe(observer)
 
@@ -109,6 +125,9 @@ proc subscribe*[T](
   error: ErrorCallback = nil,
   complete: CompleteCallback = nil
 ): Subscription {.discardable.} =
+  ## Convenience proc that allows subscribing by just defining the next/error/complete callbacks.
+  ## If called with `SyncErrorCallback` or `CompleteErrorCallback` type those will be immediately
+  ## converted via the `functionType.toAsync` converters.
   proc asyncNext(value: T) {.async.} = 
     next(value)
   return reactable.subscribe(asyncNext, error, complete)

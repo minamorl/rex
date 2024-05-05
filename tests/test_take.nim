@@ -10,12 +10,12 @@ suite "Operators - tap":
     privateAccess(Observable)
     # GIVEN
     var receivedValues: seq[int] = @[]
-    let parentObservable = newObservable[int](
+    let sourceObservable = newObservable[int](
       proc(observer: Observer[int]) {.async.} =
         for i in 1..4:
           await observer.next(i)
     )
-    let observable = parentObservable.take(2)
+    let observable = sourceObservable.take(2)
     
     # WHEN
     observable
@@ -25,7 +25,7 @@ suite "Operators - tap":
     # THEN
     check receivedValues == @[1, 2]
     check observable.observers.len == 0
-    check parentObservable.observers.len == 0
+    check sourceObservable.observers.len == 0
 
   test """
     GIVEN a subject int emitting 4 values

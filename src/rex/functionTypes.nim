@@ -12,3 +12,16 @@ type
   CompleteCallback* = proc() {.async, closure.}
   SyncCompleteCallback* = proc() {.closure.}
 
+proc completeDoNothing*() {.async.} = discard
+
+converter toAsync*(errorProc: SyncErrorCallback): ErrorCallback =
+  return if errorProc.isNil():
+      nil
+    else:
+      proc(error: ref CatchableError) {.async.} = errorProc(error)
+      
+converter toAsync*(complete: SyncCompleteCallback): CompleteCallback =
+  return if complete.isNil():
+    nil
+  else:
+    proc() {.async.} = complete()

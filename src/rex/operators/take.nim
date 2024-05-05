@@ -2,21 +2,21 @@ import ./operatorTypes
 import std/[importutils]
 
 proc takeSubscribe[T](
-  parent: Observable[T],
-  observable: Observable[T],
+  source: Observable[T],
+  destination: Observable[T],
   observer: Observer[T],
   count: int
 ): Subscription =
   ## The subscription closure called when an external observer registers itself with
-  ## an observable created via take operator.
+  ## an destination created via take operator.
   privateAccess(Observable)
   privateAccess(Subscription)  
   privateAccess(Observer)  
   var valueCounter = 0
-  let parentObserver = newForwardingObserver[T, T](observer, nil)
+  let sourceObserver = newForwardingObserver[T, T](observer, nil)
   var hasCompleted = false
-  proc onParentNext(value: T) {.async.} =
-    ## Forwards values from parent to whoever subscribes to the take-Observable.
+  proc onSourceNext(value: T) {.async.} =
+    ## Forwards values from source to whoever subscribes to the take-Observable.
     ## When the count is reached, the take-Observable completes and unsubscribes
     ## itself.
     if hasCompleted:
@@ -27,26 +27,26 @@ proc takeSubscribe[T](
   
     let hasEmittedEnough = valueCounter >= count
     if hasEmittedEnough:
-      await observable.completeProc()
+      await destination.completeProc()
       await observer.complete()
-      parent.removeObserver(parentObserver)
+      source.removeObserver(sourceObserver)
       hasCompleted = true
 
-  parentObserver.next = onParentNext
-  let parentSubscription = parent.subscribe(parentObserver)
+  sourceObserver.next = onSourceNext
+  let sourceSubscription = source.subscribe(sourceObserver)
   
     
   return Subscription(
-    unsubscribeProc: proc() = parentSubscription.unsubscribe()
+    unsubscribeProc: proc() = sourceSubscription.unsubscribe()
   )
 
 proc take*[T](
-  parent: Observable[T],
+  source: Observable[T],
   count: int
 ): Observable[T] =
   privateAccess(Observable)
   let takeObservable = Observable[T](
-    completed: parent.completed,
+    completed: source.completed,
     observers: @[],
   )
   
@@ -54,6 +54,6 @@ proc take*[T](
     await completeOperatorObservable(takeObservable)
       
   takeObservable.subscribeProc = proc(observer: Observer[T]): Subscription =
-    takeSubscribe(parent, takeObservable, observer, count)
+    takeSubscribe(source, takeObservable, observer, count)
   
   return takeObservable

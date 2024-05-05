@@ -2,16 +2,16 @@ import ./operatorTypes
 import std/[importutils]
 
 proc filterSubscribe[T](
-  parent: Observable[T], 
+  source: Observable[T], 
   observer: Observer[T],
   filterCond: proc(value: T): bool {.closure.}
 ): Subscription =   
-  proc onParentNext(value: T) {.async.} =
+  proc onSourceNext(value: T) {.async.} =
     if filterCond(value):
       await observer.next(value)
     
-  let parentObserver = newForwardingObserver(observer, onParentNext)
-  let subscription = parent.subscribe(parentObserver)
+  let sourceObserver = newForwardingObserver(observer, onSourceNext)
+  let subscription = source.subscribe(sourceObserver)
   
   privateAccess(Subscription)
   return Subscription(

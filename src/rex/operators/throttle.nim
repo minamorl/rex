@@ -3,20 +3,20 @@ import std/[importutils, monotimes, times]
 
 proc throttleSubscribe[T](
   observable: Observable[T], 
-  observer: Observer[T],
+  destinationObserver: Observer[T],
   throttleProc: proc(value: T): Duration {.closure.}
 ): Subscription =
   var lastTriggerTime: MonoTime
-  proc onParentNext(value: T) {.async.} =
+  proc onSourceNext(value: T) {.async.} =
       let delay = throttleProc(value)
       let now = getMonoTime()
       let elapsed = now - lastTriggerTime
       if elapsed >= delay:
         lastTriggerTime = now
-        await observer.next(value)
+        await destinationObserver.next(value)
   
-  let parentObserver = newForwardingObserver(observer, onParentNext)
-  let subscription = observable.subscribe(parentObserver)
+  let sourceObserver = newForwardingObserver(destinationObserver, onSourceNext)
+  let subscription = observable.subscribe(sourceObserver)
 
   privateAccess(Subscription)
   return Subscription(
