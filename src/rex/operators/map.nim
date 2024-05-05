@@ -12,10 +12,7 @@ proc mapSubscribe[SOURCE, RESULT](
   let sourceObserver = newForwardingObserver(observer, onSourceNext)
   let subscription = source.subscribe(sourceObserver)
   
-  privateAccess(Subscription)
-  return Subscription(
-    unsubscribeProc: proc() = subscription.unsubscribe()
-  )
+  return newSubscription(subscription)
 
 proc map*[SOURCE, RESULT](
   source: Observable[SOURCE],

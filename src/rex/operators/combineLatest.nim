@@ -38,10 +38,6 @@ proc combineLatest*[A, B](
     let source2Observer = newForwardingObserver(observer, onSource2Next)
     let subscription2 = source2.obs.subscribe(source2Observer)
     
-    return Subscription(
-      unsubscribeProc: proc() =
-        subscription1.unsubscribe()
-        subscription2.unsubscribe()
-    )
+    return newSubscription(subscription1, subscription2)
 
   return combinedObservable

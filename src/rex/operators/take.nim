@@ -11,7 +11,6 @@ proc takeSubscribe[T](
   ## an destination created via take operator.
   privateAccess(Observable)
   privateAccess(Subscription)  
-  privateAccess(Observer)  
   var valueCounter = 0
   let sourceObserver = newForwardingObserver[T, T](observer, nil)
   var hasCompleted = false
@@ -35,10 +34,7 @@ proc takeSubscribe[T](
   sourceObserver.next = onSourceNext
   let sourceSubscription = source.subscribe(sourceObserver)
   
-    
-  return Subscription(
-    unsubscribeProc: proc() = sourceSubscription.unsubscribe()
-  )
+  return newSubscription(sourceSubscription)
 
 proc take*[T](
   source: Observable[T],

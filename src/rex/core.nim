@@ -35,6 +35,14 @@ proc newSubscription*[A, B](
     error: observer.errorProc
   )
 
+proc newSubscription*(subscriptions: varargs[Subscription]): Subscription =
+  let subscriptionList = subscriptions.toSeq()
+  return Subscription(
+    unsubscribeProc: proc() = 
+      for subscription in subscriptionList:
+        subscription.unsubscribeProc()
+  )
+
 let EMPTY_SUBSCRIPTION* = Subscription(
   unsubscribeProc: proc() = discard, 
 )

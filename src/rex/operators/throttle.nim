@@ -2,7 +2,7 @@ import ./operatorTypes
 import std/[importutils, monotimes, times]
 
 proc throttleSubscribe[T](
-  observable: Observable[T], 
+  source: Observable[T], 
   destinationObserver: Observer[T],
   throttleProc: proc(value: T): Duration {.closure.}
 ): Subscription =
@@ -16,12 +16,10 @@ proc throttleSubscribe[T](
         await destinationObserver.next(value)
   
   let sourceObserver = newForwardingObserver(destinationObserver, onSourceNext)
-  let subscription = observable.subscribe(sourceObserver)
+  let subscription = source.subscribe(sourceObserver)
 
   privateAccess(Subscription)
-  return Subscription(
-    unsubscribeProc: proc() = subscription.unsubscribe()
-  )
+  return newSubscription(subscription)
 
 proc throttle*[T](
   source: Observable[T], 

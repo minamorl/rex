@@ -11,12 +11,10 @@ proc filterSubscribe[T](
       await observer.next(value)
     
   let sourceObserver = newForwardingObserver(observer, onSourceNext)
-  let subscription = source.subscribe(sourceObserver)
+  let sourceSubscription = source.subscribe(sourceObserver)
   
   privateAccess(Subscription)
-  return Subscription(
-    unsubscribeProc: proc() = subscription.unsubscribe()
-  )
+  return newSubscription(sourceSubscription)
 
 proc filter*[T](
   source: Observable[T], 
