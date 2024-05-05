@@ -1,5 +1,5 @@
 import ./operatorTypes
-import std/[importutils, sequtils]
+import std/[importutils]
 
 proc takeSubscribe[T](
   parent: Observable[T],

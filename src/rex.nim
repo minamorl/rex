@@ -1,7 +1,5 @@
-import ./rex/[core, operators, subjects]
+import ./rex/[core, aaaa_operators, aaaa_subjects]
 import std/asyncdispatch
 
-export core except `error=`, `complete=`
-export operators
-export subjects
-export asyncdispatch
+export core except removeObserver, hasAsyncWork
+export aaaa_operators, aaaa_subjects, asyncdispatch

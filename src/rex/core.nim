@@ -1,27 +1,11 @@
-import std/[sequtils, asyncdispatch]
+import std/[sequtils, asyncdispatch, importutils]
+import ./observer
+import ./functionTypes
 
-# TODO:
-# - Figure out how to unsubscribe the tap observer when the parent unsubscribes. Might be that tap does need to create a new observable. Then test tap accordingly
-# - Implement combineLatest
-# - Implement throttle
+export observer
+export functionTypes
 
-type ReactiveError* = ref CatchableError
-type SubscriptionError* = ReactiveError
-
-### TYPES / BASICS
 type 
-  NextCallback*[T] = proc(value: T) {.async, closure.}
-  SyncNextCallback*[T] = proc(value: T) {.closure.}
-  ErrorCallback* = proc(error: ref CatchableError) {.async, closure.}
-  SyncErrorCallback* = proc(error: ref CatchableError) {.closure.}
-  CompleteCallback* = proc() {.async, closure.}
-  SyncCompleteCallback* = proc() {.closure.}
-
-  Observer*[T] = ref object
-    nextProc: NextCallback[T]
-    errorProc: ErrorCallback
-    completeProc: CompleteCallback
-
   Observable*[T] = ref object of RootObj
     observers: seq[Observer[T]]
     subscribeProc: proc(observer: Observer[T]): Subscription
@@ -33,36 +17,6 @@ type
     unsubscribeProc: proc()
     error: ErrorCallback
 
-proc `next=`*[T](observer: Observer[T], next: NextCallback[T]) =
-  observer.nextProc = next
-  
-proc `error=`*[T](observer: Observer[T], error: ErrorCallback) =
-  observer.errorProc = error
-  
-proc `complete=`*[T](observer: Observer[T], complete: CompleteCallback) =
-  observer.completeProc = complete
-
-proc hasNextCallback*[T](observer: Observer[T]): bool =
-  return not observer.nextProc.isNil()
-
-proc hasErrorCallback*[T](observer: Observer[T]): bool =
-  return not observer.errorProc.isNil()
-
-proc hasCompleteCallback*[T](observer: Observer[T]): bool =
-  return not observer.completeProc.isNil()
-
-proc next*[T](observer: Observer[T], value: T) {.async.} =
-  if observer.hasNextCallback():
-    await observer.nextProc(value)
-
-proc error*(observer: Observer, error: ref CatchableError) {.async.} =
-  if observer.hasErrorCallback():
-    await observer.errorProc(error)
-
-proc complete*(observer: Observer) {.async.} =
-  if observer.hasCompleteCallback():
-    await observer.completeProc()
-
 proc removeObserver*[T](reactable: Observable[T], observer: Observer[T]) =
   let filteredObservers = reactable.observers.filterIt(it != observer)
   reactable.observers = filteredObservers
@@ -71,6 +25,8 @@ proc newSubscription*[A, B](
   observable: Observable[A], 
   observer: Observer[B]
 ): Subscription =
+  privateAccess(Observer)
+
   proc unsubscribeProc() =
     observable.removeObserver(observer)
 
@@ -83,61 +39,22 @@ let EMPTY_SUBSCRIPTION* = Subscription(
   unsubscribeProc: proc() = discard, 
 )
 
+proc hasAsyncWork*(subscription: Subscription): bool =
+  not subscription.fut.isNil()
+
 proc unsubscribe*(subscription: Subscription) =
   subscription.unsubscribeProc()
   
 proc doWork*(subscription: Subscription): Subscription {.discardable.} =
-  let hasFuture = not subscription.fut.isNil()
-  if not hasFuture:
-    return subscription
-  
-  try:
+  if subscription.hasAsyncWork():
     waitFor subscription.fut
-  except CatchableError as e: # TODO: Check if this try-catch is necessary, the new next closure wrapper with await should take care of this
-    if not subscription.error.isNil():
-      waitFor subscription.error(e)
-    
+  
   return subscription
 
-converter toAsync*(errorProc: SyncErrorCallback): ErrorCallback =
-  return if errorProc.isNil():
-      nil
-    else:
-      proc(error: ref CatchableError) {.async.} = errorProc(error)
-      
-converter toAsync*(complete: SyncCompleteCallback): CompleteCallback =
-  return if complete.isNil():
-    nil
-  else:
-    proc() {.async.} = complete()
-
-proc newObserver*[T](
-  next: NextCallback[T],
-  error: ErrorCallback = nil,
-  complete: CompleteCallback = nil
-): Observer[T] =
-  proc nextProc(value: T) {.async.} =
-    try:
-      await next(value)
-    except CatchableError as e:
-      if not error.isNil():
-        await error(e)
-
-  return Observer[T](
-    nextProc: nextProc, 
-    errorProc: error, 
-    completeProc: complete,
-  )
-
-proc newObserver*[T](
-  next: SyncNextCallback[T],
-  error: ErrorCallback = nil,
-  complete: CompleteCallback = nil
-): Observer[T] =
-  proc asyncNext(value: T) {.async.} = next(value)
-  return newObserver[T](asyncNext, error, complete)
-  
 proc newObservable*[T](valueProc: proc(observer: Observer[T]): Future[void] {.async.}): Observable[T] =
+  ## Creates a cold observable that emits values to subscribed observers via `valueProc`.
+  ## Upon subscription, `valueProc` will be executed *to completion*.
+  ## This means, that if you use async operators inside `valueProc`, then the CPU *will* block.
   let newObs = Observable[T](
     observers: @[],
     completed: true,
