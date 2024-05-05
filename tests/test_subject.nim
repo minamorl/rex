@@ -1,5 +1,5 @@
 import rex
-import std/[unittest, sugar, importutils]
+import std/[unittest, sugar, sequtils, strutils, importutils]
 
 suite "Subject":
   test """
@@ -30,7 +30,7 @@ suite "Subject":
     
     # WHEN
     subject.subscribe((value: int) => receivedValues.add(value))
-    subject.next(1)
+    subject.nextBlock(@[1])
     
     # THEN
     check receivedValues == @[1]
@@ -46,8 +46,7 @@ suite "Subject":
     
     # WHEN
     subject.subscribe((value: int) => receivedValues.add(value))
-    subject.next(1)
-    subject.next(2)
+    subject.nextBlock(@[1, 2])
     
     # THEN
     check receivedValues == @[1, 2]
@@ -65,7 +64,7 @@ suite "Subject":
     # WHEN
     subject.subscribe((value: int) => receivedValues1.add(value))
     subject.subscribe((value: int) => receivedValues2.add(value))
-    subject.next(1)
+    subject.nextBlock(@[1])
     
     # THEN
     check receivedValues1 == @[1]
@@ -83,11 +82,11 @@ suite "Subject":
     subject.subscribe(
       (value: int) => receivedValues.add(value),
       nil,
-      () => completeValues.add(1)
+      () {.closure.} => completeValues.add(1)
     )
     
     # WHEN
-    subject.complete()
+    subject.completeBlock()
     
     # THEN
     let expectedReceivedValues: seq[int] = @[]
@@ -119,12 +118,12 @@ suite "Subject":
     # GIVEN
     let observable = newSubject[int]()
     var receivedValues: seq[int] = @[]
-    observable.complete()
+    observable.completeBlock()
     privateAccess(Observable[int])
     
     # WHEN
-    let subscription = observable.subscribe((value: int) => receivedValues.add(value))
-    observable.next(1,2,3)
+    observable.subscribe((value: int) => receivedValues.add(value)).doWork()
+    observable.nextBlock(@[1,2,3])
     
     # THEN
     check observable.observers.len == 0
@@ -132,7 +131,7 @@ suite "Subject":
     check receivedValues == expected
     
   test """
-    GIVEN a subject with a subscriber with an error callback
+    GIVEN a subject with a subscriber with an async error callback
     WHEN subscription callback throws an error
     THEN it should call the error callback each time next is called
   """:
@@ -140,17 +139,46 @@ suite "Subject":
     var receivedErrors: seq[ref CatchableError] = @[]
     var receivedValues: seq[int] = @[]
     let subject = newSubject[int]()
+    const errorText = "fasdjhfalsfhasdjkf"
+    
+    # WHEN
+    subject.subscribe(
+      next = proc(value: int) {.async.} = 
+        await sleepAsync(10)
+        receivedValues.add(value)
+        await sleepAsync(10)
+        raise newException(ValueError, errorText),
+      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
+    )
+    subject.nextBlock(5,4,3)
+    
+    # THEN
+    check receivedValues == @[5,4,3]
+    check receivedErrors.len == 3
+    check receivedErrors[0].msg.contains(errorText)
+
+  test """
+    GIVEN a subject with a subscriber with a sync error callback
+    WHEN subscription callback throws an error
+    THEN it should call the error callback each time next is called
+  """:
+    # GIVEN
+    var receivedErrors: seq[ref CatchableError] = @[]
+    var receivedValues: seq[int] = @[]
+    let subject = newSubject[int]()
+    const errorText = "fasdjhfalsfhasdjkf"
     
     # WHEN
     subject.subscribe(
       next = proc(value: int) = 
         receivedValues.add(value)
-        raise newException(ValueError, "Some error"),
-      error = (error: ref CatchableError) => receivedErrors.add(error)
+        raise newException(ValueError, errorText),
+      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
     )
-    subject.next(5)
+    subject.nextBlock(@[5])
     
+    # THEN
     check receivedValues == @[5]
     check receivedErrors.len == 1
-    check receivedErrors[0].msg == "Some error"
+    check receivedErrors[0].msg.contains(errorText)
 

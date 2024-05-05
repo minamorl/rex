@@ -2,7 +2,7 @@ import rex
 # test_rex.nim
 
 import rex
-import std/[unittest, sugar, importutils]
+import std/[unittest, sugar, strutils, importutils]
 
 suite "Observable":
   test """
@@ -17,7 +17,7 @@ suite "Observable":
     let observable = newObservable[int](obsValue)
     
     # WHEN
-    observable.subscribe(observer)
+    observable.subscribe(observer).doWork()
     
     # THEN
     check receivedValues == @[obsValue]
@@ -33,14 +33,14 @@ suite "Observable":
     let obsValue2 = 3
     let obsValue3 = 4
     let observable = newObservable[int](
-      proc(observer: Observer[int]) =
-        observer.next(obsValue1)
-        observer.next(obsValue2)
-        observer.next(obsValue3) 
+      proc(observer: Observer[int]) {.async.} =
+        await observer.next(obsValue1)
+        await observer.next(obsValue2)
+        await observer.next(obsValue3) 
     )
     
     # WHEN
-    observable.subscribe((value: int) => receivedValues.add(value))
+    observable.subscribe(proc(value: int) = receivedValues.add(value)).doWork()
     
     # THEN
     check receivedValues == @[obsValue1, obsValue2, obsValue3]
@@ -58,10 +58,10 @@ suite "Observable":
     
     # WHEN
     observable.subscribe(
-      (value: int) => receivedValues.add(value),
+      proc(value: int) = receivedValues.add(value),
       error = nil,
-      complete = () => completedValues.add(obsValue)
-    )
+      complete = proc() {.closure.} = completedValues.add(obsValue)
+    ).doWork()
     
     # THEN
     check receivedValues == @[obsValue]
@@ -77,11 +77,11 @@ suite "Observable":
     var receivedValues2: seq[int] = @[]
     let obsValue = 5
     let observable = newObservable[int](obsValue)
-    observable.subscribe((value: int) => receivedValues1.add(value))
+    observable.subscribe((value: int) => receivedValues1.add(value)).doWork()
     check receivedValues1 == @[obsValue]
     
     # WHEN
-    observable.subscribe((value: int) => receivedValues2.add(value))
+    observable.subscribe((value: int) => receivedValues2.add(value)).doWork()
     
     # THEN
     check receivedValues1 == @[obsValue]
@@ -95,7 +95,7 @@ suite "Observable":
     # GIVEN
     var receivedValues: seq[int] = @[]
     let observable = newObservable[int](5)
-    let subscription = observable.subscribe((value: int) => receivedValues.add(value))
+    let subscription = observable.subscribe((value: int) => receivedValues.add(value)).doWork()
     
     # WHEN
     subscription.unsubscribe()
@@ -113,21 +113,21 @@ suite "Observable":
     var receivedErrors: seq[ref CatchableError] = @[]
     var receivedValues: seq[int] = @[]
     let observable = newObservable[int](
-      proc(observer: Observer[int]) =
-        observer.next(5)
+      proc(observer: Observer[int]) {.async.} =
+        await observer.next(5)
         
         raise newException(ValueError, "Some error")
     )
     
     # WHEN
     observable.subscribe(
-      next = (value: int) => receivedValues.add(value),
-      error = (error: ref CatchableError) => receivedErrors.add(error)
-    )
+      next = proc(value: int) = receivedValues.add(value),
+      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
+    ).doWork()
     
     check receivedValues == @[5]
     check receivedErrors.len == 1
-    check receivedErrors[0].msg == "Some error"
+    check receivedErrors[0].msg.contains("Some error") == true
   
   test """
     GIVEN a cold observable with a subscriber without an error callback
@@ -137,8 +137,8 @@ suite "Observable":
     # GIVEN
     var receivedValues: seq[int] = @[]
     let observable = newObservable[int](
-      proc(observer: Observer[int]) =
-        observer.next(5)
+      proc(observer: Observer[int]) {.async.} =
+        await observer.next(5)
         
         raise newException(ValueError, "Some error")
     )
@@ -146,7 +146,7 @@ suite "Observable":
     # WHEN
     observable.subscribe(
       next = (value: int) => receivedValues.add(value)
-    )
+    ).doWork()
     
     check receivedValues == @[5]
 
@@ -159,8 +159,8 @@ suite "Observable":
     var receivedErrors1: seq[ref CatchableError] = @[]
     var receivedErrors2: seq[ref CatchableError] = @[]
     let observable = newObservable[int](
-      proc(observer: Observer[int]) =
-        observer.next(5)
+      proc(observer: Observer[int]) {.async.} =
+        await observer.next(5)
         
         raise newException(ValueError, "Some error")
     )
@@ -168,18 +168,18 @@ suite "Observable":
     # WHEN
     observable.subscribe(
       next = (value: int) => echo "",
-      error = (error: ref CatchableError) => receivedErrors1.add(error)
-    )
+      error = (error: ref CatchableError) {.closure.} => receivedErrors1.add(error)
+    ).doWork()
     observable.subscribe(
       next = (value: int) => echo "",
-      error = (error: ref CatchableError) => receivedErrors2.add(error)
-    )
+      error = (error: ref CatchableError) {.closure.} => receivedErrors2.add(error)
+    ).doWork()
     
     # THEN
     check receivedErrors1.len == 1
-    check receivedErrors1[0].msg == "Some error"
+    check receivedErrors1[0].msg.contains("Some error")
     check receivedErrors2.len == 1
-    check receivedErrors2[0].msg == "Some error"
+    check receivedErrors2[0].msg.contains("Some error")
 
   test """
     GIVEN a cold observable with a subscriber with an error callback
@@ -190,23 +190,23 @@ suite "Observable":
     var receivedErrors: seq[ref CatchableError] = @[]
     var receivedValues: seq[int] = @[]
     let observable = newObservable[int](
-      proc(observer: Observer[int]) =
-        observer.next(5)
-        observer.next(4)
-        observer.next(3)
+      proc(observer: Observer[int]) {.async.} =
+        await observer.next(5)
+        await observer.next(4)
+        await observer.next(3)
     )
     
     # WHEN
     observable.subscribe(
-      next = proc(value: int) = 
+      next = proc(value: int) {.async.} = 
         receivedValues.add(value)
         raise newException(ValueError, "Some error"),
-      error = (error: ref CatchableError) => receivedErrors.add(error)
-    )
+      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
+    ).doWork()
     
     check receivedValues == @[5, 4, 3]
     check receivedErrors.len == 3
-    check receivedErrors[0].msg == "Some error"
+    check receivedErrors[0].msg.contains("Some error")
 
   test """
     GIVEN a cold observable with multiple subscriptions with an error callback
@@ -219,27 +219,27 @@ suite "Observable":
     var receivedValues1: seq[int] = @[]
     var receivedValues2: seq[int] = @[]
     let observable = newObservable[int](
-      proc(observer: Observer[int]) =
-        observer.next(5)
-        observer.next(4)
-        observer.next(3)
+      proc(observer: Observer[int]) {.async.} =
+        await observer.next(5)
+        await observer.next(4)
+        await observer.next(3)
     )
     
     # WHEN
-    observable.subscribe((value: int) => receivedValues1.add(value))
+    observable.subscribe((value: int) => receivedValues1.add(value)).doWork()
     observable.subscribe(
       next = proc(value: int) = raise newException(ValueError, "Some error"),
-      error = (error: ref CatchableError) => receivedErrors1.add(error)
-    )    
+      error = (error: ref CatchableError) {.closure.} => receivedErrors1.add(error)
+    ).doWork()    
     observable.subscribe(
       next = proc(value: int) = raise newException(ValueError, "Some error"),
-      error = (error: ref CatchableError) => receivedErrors2.add(error)
-    )
-    observable.subscribe((value: int) => receivedValues2.add(value))
+      error = (error: ref CatchableError) {.closure.} => receivedErrors2.add(error)
+    ).doWork()
+    observable.subscribe((value: int) => receivedValues2.add(value)).doWork()
     
     check receivedErrors1.len == 3
-    check receivedErrors1[0].msg == "Some error"
+    check receivedErrors1[0].msg.contains("Some error")
     check receivedErrors2.len == 3
-    check receivedErrors2[0].msg == "Some error"
+    check receivedErrors2[0].msg.contains("Some error")
     check receivedValues1 == @[5, 4, 3]
     check receivedValues2 == @[5, 4, 3]
