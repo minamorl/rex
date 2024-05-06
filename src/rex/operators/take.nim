@@ -1,4 +1,5 @@
 import ./operatorTypes
+import ../observer
 import std/[importutils]
 
 proc takeSubscribe[T](
