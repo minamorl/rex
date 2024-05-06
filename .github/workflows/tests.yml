@@ -12,7 +12,7 @@ jobs:
         os:
           - ubuntu-latest
           # - macOS-latest # there's a binary-missing issue in 2.0.4
-          # - windows-latest
+          - windows-latest
     steps:
     - uses: actions/checkout@v1
     - uses: iffy/install-nim@v5
