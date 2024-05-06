@@ -36,14 +36,16 @@ let coldObservable2 = newObservable[int](
 
 ### Subscribing to an Observable
 
-To subscribe to an observable and receive emitted values, use the subscribe proc:
+To subscribe to an observable and receive emitted values, use the `subscribe` proc. It returns a `Subscription` object that contains the `Future` representing the async work prepared upon subscribing. To perform the async work, you must call `subscription.doWork()` or use doWork directly after subscribe:
 
 ```nim
 let subscription = myObservable.subscribe(
   proc(value: int) =
     echo "Received value: ", value
-)
+).doWork()
 ```
+
+Note that calling doWork() is only necessary for cold observables and behavior/replay subjects.
 
 ### Using Operators
 
@@ -61,7 +63,7 @@ let throttledObservable = myObservable.throttle(proc(value: int): Duration = ini
 
 ### Creating a Subject
 
-Subjects are a special type of observable that allow you to emit values to multiple subscribers. You can create a subject using the newSubject proc:
+Subjects are a special type of observable that allow you to emit values to multiple subscribers. They act as both an observable and an observer, allowing you to subscribe to them and also emit values to their subscribers. You can create a subject using the newSubject proc:
 
 ```nim
 let subject = newSubject[int]()
@@ -69,6 +71,16 @@ subject.subscribe(proc(value: int) = echo "Received value: ", value)
 subject.nextBlock(1)
 subject.nextBlock(2)
 ```
+Subjects can be useful when you want to multicast values to multiple subscribers or when you want to have more control over when values are emitted to subscribers.
+
+### Async Behavior
+Rex supports both synchronous and asynchronous usage of certain procs:
+
+- `subscribe`: Returns a Subscription that contains the Future representing the async work prepared upon subscribing. To perform the async work, call subscription.doWork() or use doWork directly after subscribe.
+- `Subject.complete`: The complete proc is async by default and returns a Future of all the remaining async work of all the complete procs of its observers. You must waitFor that Future somewhere or use completeBlock.
+- `Subject.next`: The next proc is async by default and returns a Future of all the remaining async work of all the next/error procs of its observers. You must waitFor that Future somewhere or use nextBlock.
+
+These procs can be used in either a synchronous or asynchronous manner, depending on your requirements.
 
 ## Example
 
@@ -84,7 +96,7 @@ let observable = newObservable[int](
 
 let mappedObservable = observable.map(proc(value: int): int = value * 2)
 
-mappedObservable.subscribe(proc(value: int) = echo "Received value: ", value)
+mappedObservable.subscribe(proc(value: int) = echo "Received value: ", value).doWork()
 ```
 
 Output:
