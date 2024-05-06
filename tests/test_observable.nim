@@ -60,7 +60,7 @@ suite "Observable":
     observable.subscribe(
       proc(value: int) = receivedValues.add(value),
       error = nil,
-      complete = proc() {.closure.} = completedValues.add(obsValue)
+      complete = proc()  = completedValues.add(obsValue)
     ).doWork()
     
     # THEN
@@ -122,7 +122,7 @@ suite "Observable":
     # WHEN
     observable.subscribe(
       next = proc(value: int) = receivedValues.add(value),
-      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
+      error = (error: ref CatchableError)  => receivedErrors.add(error)
     ).doWork()
     
     check receivedValues == @[5]
@@ -168,11 +168,11 @@ suite "Observable":
     # WHEN
     observable.subscribe(
       next = (value: int) => echo "",
-      error = (error: ref CatchableError) {.closure.} => receivedErrors1.add(error)
+      error = (error: ref CatchableError)  => receivedErrors1.add(error)
     ).doWork()
     observable.subscribe(
       next = (value: int) => echo "",
-      error = (error: ref CatchableError) {.closure.} => receivedErrors2.add(error)
+      error = (error: ref CatchableError)  => receivedErrors2.add(error)
     ).doWork()
     
     # THEN
@@ -201,7 +201,7 @@ suite "Observable":
       next = proc(value: int) {.async.} = 
         receivedValues.add(value)
         raise newException(ValueError, "Some error"),
-      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
+      error = (error: ref CatchableError)  => receivedErrors.add(error)
     ).doWork()
     
     check receivedValues == @[5, 4, 3]
@@ -229,11 +229,11 @@ suite "Observable":
     observable.subscribe((value: int) => receivedValues1.add(value)).doWork()
     observable.subscribe(
       next = proc(value: int) = raise newException(ValueError, "Some error"),
-      error = (error: ref CatchableError) {.closure.} => receivedErrors1.add(error)
+      error = (error: ref CatchableError)  => receivedErrors1.add(error)
     ).doWork()    
     observable.subscribe(
       next = proc(value: int) = raise newException(ValueError, "Some error"),
-      error = (error: ref CatchableError) {.closure.} => receivedErrors2.add(error)
+      error = (error: ref CatchableError)  => receivedErrors2.add(error)
     ).doWork()
     observable.subscribe((value: int) => receivedValues2.add(value)).doWork()
     

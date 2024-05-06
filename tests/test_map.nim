@@ -110,7 +110,7 @@ suite "Operators - map":
     # WHEN
     mappedObservable.subscribe(
       next = proc(value: int) = discard,
-      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
+      error = (error: ref CatchableError)  => receivedErrors.add(error)
     )
     
     # THEN
@@ -135,7 +135,7 @@ suite "Operators - map":
     # WHEN
     mappedObservable.subscribe(
       next = proc(value: int) = discard,
-      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
+      error = (error: ref CatchableError)  => receivedErrors.add(error)
     ).doWork()
     
     # THEN

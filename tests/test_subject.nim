@@ -82,7 +82,7 @@ suite "Subject":
     subject.subscribe(
       (value: int) => receivedValues.add(value),
       nil,
-      () {.closure.} => completeValues.add(1)
+      ()  => completeValues.add(1)
     )
     
     # WHEN
@@ -148,7 +148,7 @@ suite "Subject":
         receivedValues.add(value)
         await sleepAsync(10)
         raise newException(ValueError, errorText),
-      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
+      error = (error: ref CatchableError)  => receivedErrors.add(error)
     )
     subject.nextBlock(5,4,3)
     
@@ -173,7 +173,7 @@ suite "Subject":
       next = proc(value: int) = 
         receivedValues.add(value)
         raise newException(ValueError, errorText),
-      error = (error: ref CatchableError) {.closure.} => receivedErrors.add(error)
+      error = (error: ref CatchableError)  => receivedErrors.add(error)
     )
     subject.nextBlock(@[5])
     

@@ -138,16 +138,3 @@ proc subscribe*[T](
   ## converted via the `functionType.toAsync` converters.
   let observer = newObserver[T](next, error, complete)
   return reactable.subscribe(observer)
-
-proc subscribe*[T](
-  reactable: Observable[T],
-  next: SyncNextCallback[T],
-  error: ErrorCallback = nil,
-  complete: CompleteCallback = nil
-): Subscription {.discardable.} =
-  ## Convenience proc that allows subscribing by just defining the next/error/complete callbacks.
-  ## If called with `SyncErrorCallback` or `CompleteErrorCallback` type those will be immediately
-  ## converted via the `functionType.toAsync` converters.
-  proc asyncNext(value: T) {.async.} = 
-    next(value)
-  return reactable.subscribe(asyncNext, error, complete)

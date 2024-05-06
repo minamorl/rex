@@ -52,11 +52,3 @@ proc newObserver*[T](
     errorProc: error, 
     completeProc: complete,
   )
-
-proc newObserver*[T](
-  next: SyncNextCallback[T],
-  error: ErrorCallback = nil,
-  complete: CompleteCallback = nil
-): Observer[T] =
-  proc asyncNext(value: T) {.async.} = next(value)
-  return newObserver[T](asyncNext, error, complete)

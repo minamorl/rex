@@ -1,7 +1,7 @@
 import rex
 import std/[unittest, sugar, importutils]
 
-suite "Operators - tap":
+suite "Operators - take":
   test """
     GIVEN a cold int observable emitting 4 values
     WHEN using the take operator with a count of 2
@@ -67,7 +67,7 @@ suite "Operators - tap":
     observable
       .subscribe(
         next = (value: int) => receivedValues.add(value),
-        complete = proc()  {.closure.} = completedCalls.inc
+        complete = proc()   = completedCalls.inc
       )
 
     subject.nextBlock(1)
@@ -98,7 +98,7 @@ suite "Operators - tap":
     observable
       .subscribe(
         next = (value: int) => receivedValues.add(value),
-        complete = proc()  {.closure.} = completedCalls.inc
+        complete = proc()   = completedCalls.inc
       )
 
     subject.nextBlock(1)
