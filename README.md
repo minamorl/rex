@@ -45,8 +45,6 @@ let subscription = myObservable.subscribe(
 ).doWork()
 ```
 
-Note that calling doWork() is only necessary for cold observables and behavior/replay subjects.
-
 ### Using Operators
 
 Rex provides a range of operators to transform, filter, and combine observables. Here are a few examples:
